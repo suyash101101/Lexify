@@ -8,6 +8,7 @@ from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
 from ..config import settings
 import random
 import spacy
+from phi.model.google import Gemini
 from dotenv import load_dotenv
 from phi.agent import Agent, RunResponse
 from phi.model.openai.like import OpenAILike
@@ -71,8 +72,8 @@ class HumanAssistant(VectorDBMixin):
     def __init__(self):
         super().__init__()
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.summarising_agent = Agent(model=Ollama(id = "llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
-        self.context_checker = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,)
+        self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
+        self.context_checker = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
 
     def ask(self,user_input):
         context_needed = self.check_context_need(user_input)
@@ -104,7 +105,7 @@ class AILawyer(VectorDBMixin):
     def __init__(self):
         super().__init__()  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.RagAgent = Agent(model=Ollama(id = "llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
 
     def respond(self, query):
         # Generate response using insights
@@ -153,7 +154,7 @@ class Judge:
         self.coherence_model = pipeline("text-classification", model="textattack/bert-base-uncased-snli")
         self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         self.current_turn = None  # Track whose turn it is
-        self.judge = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,)
+        self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
 
     def analyze_response(self, response, is_human):
         """Enhanced response analysis with chunking"""

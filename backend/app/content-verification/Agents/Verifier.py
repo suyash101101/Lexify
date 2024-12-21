@@ -1,6 +1,6 @@
 import os
 from phi.agent import Agent, RunResponse
-from phi.model.openai.like import OpenAILike
+from phi.model.google import Gemini
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -8,10 +8,8 @@ def Verify(output_dir=r'./output'):
     # Initialize the Verifier agent with specified model and tools
     Verifier = Agent(
         name="Verifier",
-        model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),
-        tools=[],
-        show_tool_calls=True,
-        markdown=True,
+        model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
+        tools=[]
     )
 
     # Create a directory for verified reports if it doesn't exist
