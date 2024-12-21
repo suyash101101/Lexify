@@ -1,124 +1,232 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import * as lucideIcons from 'lucide-react';
+import ReactDOMServer from 'react-dom/server';
 
 const Background = () => {
   const containerRef = useRef();
+  const cursorRef = useRef();
   const mousePosition = useRef({ x: 0, y: 0 });
-  const meshes = useRef([]);
+  const symbols = useRef([]);
 
   useEffect(() => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      alpha: true 
-    });
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0);
+    renderer.setClearColor(0xf8fafc, 1);
     containerRef.current.appendChild(renderer.domElement);
 
-    // Create legal symbols and text
-    const symbols = ['§', '¶', '⚖', '⚔'];
-    const geometry = new THREE.TorusGeometry(1, 0.3, 16, 100);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.15,
-      wireframe: true
-    });
+    const createIconPath = (icon) => {
+      const IconComponent = lucideIcons[icon];
+      return ReactDOMServer.renderToString(<IconComponent color="#1e293b" size={48} />);
+    };
 
-    // Create floating elements
-    for (let i = 0; i < 15; i++) {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.x = (Math.random() - 0.5) * 10;
-      mesh.position.y = (Math.random() - 0.5) * 10;
-      mesh.position.z = (Math.random() - 0.5) * 10;
-      mesh.rotation.x = Math.random() * Math.PI;
-      mesh.rotation.y = Math.random() * Math.PI;
-      mesh.scale.setScalar(Math.random() * 0.5 + 0.5);
-      scene.add(mesh);
-      meshes.current.push(mesh);
-    }
+    const createSymbolTexture = (iconName) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      
+      const iconPath = createIconPath(iconName);
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+          ${iconPath}
+        </svg>
+      `;
 
-    camera.position.z = 5;
+      const img = new Image();
+      img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+      
+      const texture = new THREE.Texture(canvas);
+      img.onload = () => {
+        ctx.drawImage(img, 8, 8, 48, 48);
+        texture.needsUpdate = true;
+      };
 
-    // Enhanced mouse effect
+      return texture;
+    };
+
+    const createCustomSymbolTexture = (symbol) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText(symbol, 32, 32);
+      return new THREE.CanvasTexture(canvas);
+    };
+
+    const initSymbols = () => {
+      const symbolTextures = [
+        createSymbolTexture('Scale'),
+        createSymbolTexture('Clock'),
+        createSymbolTexture('DollarSign'),
+        createSymbolTexture('Gavel'),
+        createSymbolTexture('FileText'),
+        createSymbolTexture('Shield'),
+        createSymbolTexture('Users'),
+        createSymbolTexture('Scale'),
+        createCustomSymbolTexture('₹'),
+        createCustomSymbolTexture('⚖'),
+      ];
+
+      const symbolCount = 1000;
+      for (let i = 0; i < symbolCount; i++) {
+        const symbolIndex = Math.floor(Math.random() * symbolTextures.length);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: symbolTextures[symbolIndex],
+          color: 0x1e293b,
+          transparent: true,
+          blending: THREE.NormalBlending,
+          opacity: 0.7,
+        }));
+
+        const glowMaterial = new THREE.SpriteMaterial({
+          map: symbolTextures[symbolIndex],
+          color: 0x60a5fa,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          opacity: 0.3,
+        });
+
+        const glowSprite = new THREE.Sprite(glowMaterial);
+        glowSprite.scale.multiplyScalar(1.5);
+        sprite.add(glowSprite);
+
+        sprite.position.set(
+          (Math.random() * 2000) - 1000,
+          (Math.random() * 2000) - 1000,
+          (Math.random() * 2000) - 1000
+        );
+
+        sprite.scale.set(30, 30, 1);
+
+        scene.add(sprite);
+        symbols.current.push({
+          sprite,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 0.3,
+            (Math.random() - 0.5) * 0.3,
+            (Math.random() - 0.5) * 0.3
+          ),
+          initialScale: Math.random() * 30 + 15,
+        });
+      }
+
+      camera.position.z = 1000;
+    };
+
+    initSymbols();
+
     const onMouseMove = (event) => {
       mousePosition.current = {
         x: (event.clientX / window.innerWidth) * 2 - 1,
         y: -(event.clientY / window.innerHeight) * 2 + 1
       };
-
-      // React to mouse movement with more visible effect
-      meshes.current.forEach((mesh, i) => {
-        const distanceX = mousePosition.current.x * 3;
-        const distanceY = mousePosition.current.y * 2;
-        
-        mesh.rotation.x += 0.01 * (i % 2 ? 1 : -1);
-        mesh.rotation.y += 0.01 * (i % 2 ? -1 : 1);
-        
-        // Add swoosh effect towards mouse
-        mesh.position.x += (distanceX - mesh.position.x) * 0.05;
-        mesh.position.y += (distanceY - mesh.position.y) * 0.05;
-      });
+      
+      if (cursorRef.current) {
+        cursorRef.current.style.left = `${event.clientX}px`;
+        cursorRef.current.style.top = `${event.clientY}px`;
+      }
     };
+
+    window.addEventListener('mousemove', onMouseMove);
 
     const animate = () => {
       requestAnimationFrame(animate);
 
-      // Continuous animation
-      meshes.current.forEach((mesh, i) => {
-        mesh.rotation.x += 0.001 * (i % 2 ? 1 : -1);
-        mesh.rotation.y += 0.001 * (i % 2 ? -1 : 1);
+      symbols.current.forEach((symbol, index) => {
+        symbol.sprite.position.add(symbol.velocity);
+
+        const mouseX = mousePosition.current.x * 1000;
+        const mouseY = mousePosition.current.y * 1000;
         
-        // Floating effect
-        mesh.position.y += Math.sin(Date.now() * 0.001 + i) * 0.002;
-        mesh.position.x += Math.cos(Date.now() * 0.001 + i) * 0.002;
+        const dx = mouseX - symbol.sprite.position.x;
+        const dy = mouseY - symbol.sprite.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 200) {
+          const repelForce = 1 - (distance / 200);
+          symbol.sprite.position.x -= (dx / distance) * repelForce * 2;
+          symbol.sprite.position.y -= (dy / distance) * repelForce * 2;
+          
+          symbol.sprite.position.x += (Math.random() - 0.5) * 0.5;
+          symbol.sprite.position.y += (Math.random() - 0.5) * 0.5;
+        }
+
+        if (symbol.sprite.position.x < -1000) symbol.sprite.position.x = 1000;
+        if (symbol.sprite.position.x > 1000) symbol.sprite.position.x = -1000;
+        if (symbol.sprite.position.y < -1000) symbol.sprite.position.y = 1000;
+        if (symbol.sprite.position.y > 1000) symbol.sprite.position.y = -1000;
+        if (symbol.sprite.position.z < -1000) symbol.sprite.position.z = 1000;
+        if (symbol.sprite.position.z > 1000) symbol.sprite.position.z = -1000;
+
+        const scale = Math.sin(Date.now() * 0.001 + index) * 5 + symbol.initialScale;
+        symbol.sprite.scale.set(scale, scale, 1);
       });
 
       renderer.render(scene, camera);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
     animate();
 
-    // Gradient background
     const gradientOverlay = document.createElement('div');
     gradientOverlay.style.cssText = `
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at 50% 50%, 
-        rgba(30, 58, 138, 0.8) 0%, 
-        rgba(30, 64, 175, 0.85) 50%, 
-        rgba(12, 74, 110, 0.95) 100%);
+      background: linear-gradient(45deg, rgba(241, 245, 249, 1) 0%, rgba(186, 230, 253, 0.5) 100%);
+      animation: moveGradient 15s ease infinite;
       pointer-events: none;
     `;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes moveGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+    `;
+    document.head.appendChild(style);
+
     containerRef.current.appendChild(gradientOverlay);
 
-    // Handle resize
-    const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
+    const cursorGlow = document.createElement('div');
+    cursorGlow.className = 'cursor-glow';
+    cursorGlow.style.cssText = `
+      position: fixed;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(186, 230, 253, 0.15) 0%, rgba(186, 230, 253, 0.1) 40%, transparent 70%);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(cursorGlow);
+    cursorRef.current = cursorGlow;
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('resize', handleResize);
       containerRef.current?.removeChild(renderer.domElement);
       containerRef.current?.removeChild(gradientOverlay);
+      document.body.removeChild(cursorGlow);
+      document.head.removeChild(style);
     };
   }, []);
 
   return (
     <div 
       ref={containerRef} 
-      className="fixed inset-0 -z-10"
+      className="fixed inset-0 -z-10 bg-gradient-to-br from-slate-50 to-sky-50"
     />
   );
 };
 
 export default Background;
+

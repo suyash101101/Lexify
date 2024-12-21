@@ -64,7 +64,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <div className="min-h-screen">
+      <div className="min-h-screen relative overflow-hidden">
         <Background />
         
         {/* Main content */}
