@@ -23,6 +23,61 @@ import os
 file_path = r'../content-verification/case.txt'
 reference_path = r'../content-verification/references'
 
+def generate_case_pdf(case: dict) -> str:
+    """
+    Generate a minimal PDF report for a case
+    """
+    os.makedirs('case_reports', exist_ok=True)
+    pdf_filename = f'case_reports/case_{case["case_id"]}.pdf'
+    
+    doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
+    
+    # Title
+    elements.append(Paragraph(f"Case Report: {case['title']}", styles['Title']))
+    elements.append(Spacer(1, 20))
+    
+    # Case Details
+    elements.append(Paragraph("Case Details", styles['Heading1']))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"Case ID: {case['case_id']}", styles['Normal']))
+    elements.append(Paragraph(f"Status: {case['case_status']}", styles['Normal']))
+    elements.append(Paragraph(f"Created: {case['created_at']}", styles['Normal']))
+    elements.append(Paragraph(f"Last Updated: {case['updated_at']}", styles['Normal']))
+    elements.append(Spacer(1, 10))
+    
+    # Description
+    elements.append(Paragraph("Case Description", styles['Heading2']))
+    elements.append(Paragraph(case['description'], styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Lawyer 1 Evidence
+    elements.append(Paragraph("Lawyer 1 Evidence", styles['Heading2']))
+    elements.append(Spacer(1, 5))
+    elements.append(Paragraph(f"Lawyer Address: {case['lawyer1_address']}", styles['Normal']))
+    elements.append(Spacer(1, 10))
+    
+    for idx, evidence in enumerate(case['lawyer1_evidences'], 1):
+        elements.append(Paragraph(f"Evidence {idx}:", styles['Heading3']))
+        elements.append(Paragraph(f"Description: {evidence['description']}", styles['Normal']))
+        elements.append(Paragraph(f"File Name: {evidence['original_name']}", styles['Normal']))
+        elements.append(Paragraph(f"Submitted: {evidence['submitted_at']}", styles['Normal']))
+        elements.append(Spacer(1, 10))
+    
+    # Lawyer 2 Evidence
+    elements.append(Paragraph("AI Evidence", styles['Heading2']))
+    elements.append(Spacer(1, 10))
+    
+    for idx, evidence in enumerate(case['lawyer2_evidences'], 1):
+        elements.append(Paragraph(f"Evidence {idx}:", styles['Heading3']))
+        elements.append(Paragraph(f"Description: {evidence['description']}", styles['Normal']))
+        elements.append(Paragraph(f"File Name: {evidence['original_name']}", styles['Normal']))
+        elements.append(Paragraph(f"Submitted: {evidence['submitted_at']}", styles['Normal']))
+        elements.append(Spacer(1, 10))
+    
+    doc.build(elements)
+    return pdf_filename
 
 
 from ...schema.schemas import (
@@ -85,6 +140,7 @@ async def create_case(case_data: CaseCreateSchema):
         
         #here add the thing in order to put the particular case into the database 
         saved_case = redis_client.create_case(case_id, case_obj)
+        generate_case_pdf(case_obj)
         print(saved_case)
         
         return saved_case
@@ -135,7 +191,7 @@ async def submit_evidence(case_id: str, evidence_data: EvidenceSubmissionSchema)
     case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     
     updated_case = redis_client.update_case(case_id, case)
-
+    generate_case_pdf(case)
 
 
 
@@ -154,6 +210,7 @@ async def update_case_status(case_id: str, status: dict):
     case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     
     updated_case = redis_client.update_case(case_id, case)
+    generate_case_pdf(case)
 
     
     return updated_case

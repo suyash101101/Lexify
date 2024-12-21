@@ -1,6 +1,6 @@
 import os
 from phi.agent import Agent, RunResponse
-from phi.model.openai import OpenAIChat
+from phi.model.google import Gemini
 from phi.tools.file import FileTools
 from dotenv import load_dotenv
 load_dotenv()
@@ -9,10 +9,8 @@ def FlowAnalysis(filepath):
     # Initialize the Analyzer agent with specified model and tools
     Analyzer = Agent(
         name="Analyzer",
-        model=OpenAIChat(id="gpt-4o"),
-        tools=[FileTools()],
-        show_tool_calls=True,
-        markdown=True,
+        model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
+        tools=[FileTools()]
     )
 
     # Check if the output directory exists, if not, create it

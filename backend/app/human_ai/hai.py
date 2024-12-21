@@ -8,10 +8,13 @@ from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
 from ..config import settings
 import random
 import spacy
+from phi.model.google import Gemini
 from dotenv import load_dotenv
 from phi.agent import Agent, RunResponse
+from phi.model.openai.like import OpenAILike
+from phi.model.ollama import Ollama
 from phi.knowledge.llamaindex import LlamaIndexKnowledgeBase
-from phi.model.openai import OpenAIChat
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
@@ -19,12 +22,16 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from io import BytesIO
 import requests
+import re
 
 load_dotenv()
 
 # Configure OpenAI settings
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
+Settings.embed_model = HuggingFaceEmbedding(
+    model_name="all-MiniLM-L6-v2"
+)
 
 # Pydantic Models
 class LawyerContext(BaseModel):
@@ -66,8 +73,8 @@ class HumanAssistant(VectorDBMixin):
     def __init__(self):
         super().__init__()
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.summarising_agent = Agent(model=OpenAIChat(id="gpt-4o"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
-        self.context_checker = Agent(model=OpenAIChat(id="gpt-4o"),markdown=True,)
+        self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
+        self.context_checker = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
 
     def ask(self,user_input):
         context_needed = self.check_context_need(user_input)
@@ -99,7 +106,7 @@ class AILawyer(VectorDBMixin):
     def __init__(self):
         super().__init__()  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.RagAgent = Agent(model=OpenAIChat(id="gpt-4o"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
 
     def respond(self, query):
         # Generate response using insights
@@ -117,6 +124,7 @@ class AILawyer(VectorDBMixin):
             f"Now assuming that you are fighting a case in a court of law, respond to the following statement: {query}"
             "This is the statement of the opposing lawyer. You need to respond to it in a way that is both persuasive and legal."
             "If he is talking to you in a casual manner, you should respond in a casual manner too."
+            "Always refer to the opposite lawyer when speaking and dont use anything other than fellow lawyer to start a conversation."
         )
 
         run: RunResponse = self.RagAgent.run(prompt)
@@ -148,7 +156,8 @@ class Judge:
         self.coherence_model = pipeline("text-classification", model="textattack/bert-base-uncased-snli")
         self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         self.current_turn = None  # Track whose turn it is
-        self.judge = Agent(model=OpenAIChat(id="gpt-4o"),markdown=True,)
+        self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
 
     def analyze_response(self, response, is_human):
         """Enhanced response analysis with chunking"""
@@ -175,13 +184,16 @@ class Judge:
             coherence_score = analyze_in_chunks(coherence_input, self.coherence_model)
 
         final_score = (expression_score + coherence_score) / 2
+        prompt = f"Based on the score calculated which is {final_score} and the input {response} generate a score between 0 and 1. Make sure that if the response is not that good or it is very bad then the score is low regardless of the score calculated. Make sure only the score in the form of numbers is given as output and nothing else."
+        run: RunResponse = self.score_analyser.run(prompt)
+        extracted_number = float(run.content)
 
         if is_human:
-            self.human_score += final_score
+            self.human_score += extracted_number
         else:
-            self.ai_score += final_score
+            self.ai_score += extracted_number
             
-        return final_score
+        return extracted_number
 
     async def start_simulation(self):
         """Initialize a new simulation and return initial state"""
