@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/images/logo.webp" alt="Lexify Logo" width="200" height="200"/>
+  <img src="assets/logo.webp" alt="Lexify Logo" width="200" height="200"/>
 </div>
 
 # Lexify - Your Virtual Courtroom Buddy 🏛️
