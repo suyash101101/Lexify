@@ -11,7 +11,7 @@ import Hello from './components/Hello';
 import Cases from './components/Cases';
 import { useAuth0 } from '@auth0/auth0-react';
 import CreateCase from './components/CreateCase';
-import HAIChat from './components/HAIChat';
+import HAIChatInterface from './components/HAIChatInterface';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from './styles/theme';
@@ -99,7 +99,7 @@ function App() {
                 />
                 <Route
                   path="/chat/:case_id"
-                  element={<ProtectedRoute component={HAIChat} />}
+                  element={<ProtectedRoute component={HAIChatInterface} />}
                 />
                 <Route
                   path="/create-case"

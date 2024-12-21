@@ -10,8 +10,10 @@ import random
 import spacy
 from dotenv import load_dotenv
 from phi.agent import Agent, RunResponse
+from phi.model.openai.like import OpenAILike
+from phi.model.ollama import Ollama
 from phi.knowledge.llamaindex import LlamaIndexKnowledgeBase
-from phi.model.openai import OpenAIChat
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
@@ -25,6 +27,9 @@ load_dotenv()
 # Configure OpenAI settings
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
+Settings.embed_model = HuggingFaceEmbedding(
+    model_name="all-MiniLM-L6-v2"
+)
 
 # Pydantic Models
 class LawyerContext(BaseModel):
@@ -66,8 +71,8 @@ class HumanAssistant(VectorDBMixin):
     def __init__(self):
         super().__init__()
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.summarising_agent = Agent(model=OpenAIChat(id="gpt-4o"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
-        self.context_checker = Agent(model=OpenAIChat(id="gpt-4o"),markdown=True,)
+        self.summarising_agent = Agent(model=Ollama(id = "llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        self.context_checker = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,)
 
     def ask(self,user_input):
         context_needed = self.check_context_need(user_input)
@@ -99,7 +104,7 @@ class AILawyer(VectorDBMixin):
     def __init__(self):
         super().__init__()  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.RagAgent = Agent(model=OpenAIChat(id="gpt-4o"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        self.RagAgent = Agent(model=Ollama(id = "llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
 
     def respond(self, query):
         # Generate response using insights
@@ -148,7 +153,7 @@ class Judge:
         self.coherence_model = pipeline("text-classification", model="textattack/bert-base-uncased-snli")
         self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         self.current_turn = None  # Track whose turn it is
-        self.judge = Agent(model=OpenAIChat(id="gpt-4o"),markdown=True,)
+        self.judge = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,)
 
     def analyze_response(self, response, is_human):
         """Enhanced response analysis with chunking"""

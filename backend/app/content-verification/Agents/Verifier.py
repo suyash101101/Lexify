@@ -1,6 +1,6 @@
 import os
 from phi.agent import Agent, RunResponse
-from phi.model.openai import OpenAIChat
+from phi.model.openai.like import OpenAILike
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -8,7 +8,7 @@ def Verify(output_dir=r'./output'):
     # Initialize the Verifier agent with specified model and tools
     Verifier = Agent(
         name="Verifier",
-        model=OpenAIChat(id="gpt-4o"),
+        model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),
         tools=[],
         show_tool_calls=True,
         markdown=True,

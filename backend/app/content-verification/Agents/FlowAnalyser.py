@@ -1,6 +1,6 @@
 import os
 from phi.agent import Agent, RunResponse
-from phi.model.openai import OpenAIChat
+from phi.model.openai.like import OpenAILike
 from phi.tools.file import FileTools
 from dotenv import load_dotenv
 load_dotenv()
@@ -9,7 +9,7 @@ def FlowAnalysis(filepath):
     # Initialize the Analyzer agent with specified model and tools
     Analyzer = Agent(
         name="Analyzer",
-        model=OpenAIChat(id="gpt-4o"),
+        model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),
         tools=[FileTools()],
         show_tool_calls=True,
         markdown=True,
