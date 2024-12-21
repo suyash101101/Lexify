@@ -16,6 +16,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from './styles/theme';
 import Background from './components/Background';
+import Consulting from './components/Consulting';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ component, ...args }) => {
@@ -75,6 +76,7 @@ function App() {
                 {/* Public routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/consultancy" element ={<Consulting/>} />
                 
                 {/* Protected routes */}
                 <Route
@@ -105,6 +107,7 @@ function App() {
                   path="/create-case"
                   element={<ProtectedRoute component={CreateCase} />}
                 />
+
               </Routes>
             </NavigationWrapper>
           </Auth0ProviderWithNavigate>
