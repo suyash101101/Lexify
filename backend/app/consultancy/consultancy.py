@@ -29,7 +29,8 @@ class RAG:
     def ask(self, prompt):
         query = f"For the given prompt {prompt} get all relevant context needed to give the answer."
         run: RunResponse = self.consulting_agent.run(query)
-        query = f"now using the content {run.content} give a good response for the following query {prompt}. Use the context only if necessary. If you already know the answer without the need of the context do not use the context."
+        print(run.content)
+        query = f"now using the content {run.content} give a good response for the following query {prompt}.Always provide the list of relavent articles and acts for the content based on Indian constitution and all acts. Use the context only if necessary. If you already know the answer without the need of the context do not use the context. "
         run: RunResponse = self.query_agent.run(query)
         return run.content
     
