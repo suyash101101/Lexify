@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     pinata_api_key: str
     pinata_secret_api_key: str
     google_api_key: str
+    data_dir : str
 
     class Config:
         env_file = ".env"
