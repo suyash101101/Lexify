@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Case Chat</title>
+    <style>
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .system-message {
+            color: #666;
+            font-style: italic;
+        }
+        .user-message {
+            margin: 5px 0;
+        }
+        .user-address {
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Case Chat</h1>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        const caseId = "bc6666f8-c132-4194-be9c-af8fa6be3a4c"; // Replace with actual case ID
+        const userAddress = "abcd"; // Replace with actual user address
+        
+        const ws = new WebSocket(`ws://localhost:8000/ws/${caseId}/${userAddress}`);
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+
+        ws.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+            const messageElement = document.createElement('div');
+            
+            if (message.type === 'system') {
+                messageElement.className = 'system-message';
+                messageElement.textContent = message.content;
+            } else {
+                messageElement.className = 'user-message';
+                messageElement.innerHTML = `<span class="user-address">${message.user_address}:</span> ${message.content}`;
+            }
+            
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        function sendMessage() {
+            if (messageInput.value.trim()) {
+                const message = {
+                    type: 'chat',
+                    content: messageInput.value
+                };
+                ws.send(JSON.stringify(message));
+                messageInput.value = '';
+            }
+        }
+
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 
