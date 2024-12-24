@@ -34,8 +34,10 @@ class EvidenceSubmissionSchema(BaseModel):
 class CaseCreateSchema(BaseModel):
     title: str
     description: str
-    files: List[FileDescription]    
+        
     lawyer1_address: str # this is going to be gotten form the auth id from google or somethign like that and that will be stored initially in cookies once the user logs in 
+    files: List[FileDescription]
+    lawyer2_files: List[FileDescription]
     case_status: CaseStatus = CaseStatus.OPEN
 
 class ChatMessageSchema(BaseModel):

@@ -17,18 +17,18 @@ from reportlab.platypus import (
 from reportlab.platypus.para import Paragraph
 from reportlab.platypus.flowables import KeepTogether
 import os
+from ..content_verification.main import ContentVerification
 
 
 
-file_path = r'../content-verification/case.txt'
-reference_path = r'../content-verification/references'
+
 
 def generate_case_pdf(case: dict) -> str:
     """
     Generate a minimal PDF report for a case
     """
-    os.makedirs('case_reports', exist_ok=True)
-    pdf_filename = f'case_reports/case_{case["case_id"]}.pdf'
+    os.makedirs(f'app/case_reports/{case["case_id"]}', exist_ok=True)
+    pdf_filename = f'app/case_reports/{case["case_id"]}/case_{case["case_id"]}.pdf'
     
     doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
     styles = getSampleStyleSheet()
@@ -103,22 +103,40 @@ async def list_cases():
     """Lists all cases"""
     return redis_client.list_cases()
 
-@router.post("/create")
+@router.post("/create") # here in the case of the create case schema remove the submit evidence thing and in the case of the create case along with the funcionality return also the response or particularly what is the data for the same side by side ke basically verify thayu chhe ke nahi and store karti vakhte store in teh case_reports/caseid folder and side by side dar ek aa folder na andar aa naam toh pdf toh hase j and next side by side ena andar content verification folder pan banavai devanu and next time jyare vector database na andar ni vastu jyare thaay tyare e case ma je vector database chhe ena maate case id pan andar aavu joiye so that next time only for the paritcular context of the given case e vastu banine rehse side by side 
+# or else ek biju evu karvanu rehse ke for the case of the conversations ene still redis na upar muki rakhvanu and along with turn repsonse also return the comment passed by the judge to the frontend side by side to be shown to the user
 async def create_case(case_data: CaseCreateSchema):
     """Creates a new case with initial evidence"""
     try:
-        os.makedirs('content-verification', exist_ok=True)
-        file_path = os.path.join('content-verification', 'case.txt')
+        case_id = str(uuid.uuid4())
+        
+        os.makedirs(f'app/case_reports/{case_id}', exist_ok=True)
+        os.makedirs(f'app/case_reports/{case_id}/content_verification', exist_ok=True)
+        os.makedirs(f'app/case_reports/{case_id}/content_verification/references', exist_ok=True)
+        file_path = os.path.join(f'app/case_reports/{case_id}/content_verification', 'case.txt')
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(case_data.description)
         
         for file in case_data.files:
-            os.makedirs('content-verification/references', exist_ok=True)
-            reference_file_path = os.path.join('content-verification/references', f"{file.original_name.split('.')[0]}.txt")
+            os.makedirs(f'app/case_reports/{case_id}/content_verification/references', exist_ok=True)
+            reference_file_path = os.path.join(f'app/case_reports/{case_id}/content_verification/references', f"{file.original_name.split('.')[0]}.txt")
             with open(reference_file_path, 'w', encoding='utf-8') as f:
                 f.write(file.description)
 
-        case_id = str(uuid.uuid4())
+        for file in case_data.lawyer2_files:
+            os.makedirs(f'app/case_reports/{case_id}/content_verification/references', exist_ok=True)
+            reference_file_path = os.path.join(f'app/case_reports/{case_id}/content_verification/references', f"{file.original_name.split('.')[0]}.txt")
+            with open(reference_file_path, 'w', encoding='utf-8') as f:
+                f.write(file.description)
+
+        file_path = f'app/case_reports/{case_id}/content_verification/case.txt'
+        reference_path = f'app/case_reports/{case_id}/content_verification/references'
+
+        content_verifier = ContentVerification(file_path, reference_path)
+        verification_results = content_verifier.verify_content(file_path, reference_path)
+        print(verification_results)
+
+
         case_obj = {
             "case_id": case_id,
             "title": case_data.title,
@@ -132,7 +150,14 @@ async def create_case(case_data: CaseCreateSchema):
                     "submitted_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 } for file in case_data.files
             ],
-            "lawyer2_evidences": [],#this will be given to the lawyer itself 
+            "lawyer2_evidences": [
+                {
+                    "ipfs_hash": file.ipfs_hash, # this will be changed later once we swtich to buckets or somethign like that 
+                    "description": file.description,
+                    "original_name": file.original_name,
+                    "submitted_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                } for file in case_data.lawyer2_files
+            ],#this will be given to the lawyer itself 
             "case_status": case_data.case_status,
             "created_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
             "updated_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -159,8 +184,8 @@ async def submit_evidence(case_id: str, evidence_data: EvidenceSubmissionSchema)
         raise HTTPException(status_code=404, detail="Case not found")
     
     for file in evidence_data.evidences:
-        os.makedirs('content-verification/references', exist_ok=True)
-        reference_file_path = os.path.join('content-verification/references', f"{file.original_name.split('.')[0]}.txt")
+        os.makedirs('content_verification/references', exist_ok=True)
+        reference_file_path = os.path.join('content_verification/references', f"{file.original_name.split('.')[0]}.txt")
         with open(reference_file_path, 'w', encoding='utf-8') as f:
             f.write(file.description)
 

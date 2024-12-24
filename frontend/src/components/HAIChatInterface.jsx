@@ -56,6 +56,14 @@ const HAIChatInterface = () => {
             }]);
           }
 
+          if (state.judge_comment) {
+            setMessages(prev => [...prev, {
+              speaker: 'judge',
+              content: state.judge_comment,
+              isComment: true
+            }]);
+          }
+
           setIsCourtSpeaking(
             (state.next_turn === 'ai') || 
             (state.current_response.speaker === 'judge' && state.next_turn !== 'human')
@@ -114,23 +122,54 @@ const HAIChatInterface = () => {
   };
 
   const renderMessage = (msg, idx) => (
-    <div key={idx} className={`message ${msg.speaker}`}>
-      <div className="speaker-info">
-        {msg.speaker === 'ai' ? 'AI Lawyer' : msg.speaker === 'human' ? 'You' : 'Judge'}
+    <motion.div
+      key={idx}
+      initial={{ x: msg.speaker === 'human' ? 20 : -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 500, damping: 50 }}
+      className={`mb-4 ${
+        msg.speaker === 'human' ? 'ml-auto' : 'mr-auto'
+      } max-w-[80%]`}
+    >
+      <div className={`rounded-xl p-4 ${
+        msg.speaker === 'human' 
+          ? 'bg-blue-50 text-blue-800 ml-auto' 
+          : msg.speaker === 'judge' 
+          ? msg.isComment
+            ? 'bg-purple-50/80 text-purple-800 border-l-4 border-purple-300'
+            : 'bg-purple-50 text-purple-800'
+          : 'bg-green-50 text-green-800'
+      }`}>
+        <div className="font-medium text-sm mb-1 flex justify-between items-center">
+          <span>
+            {msg.speaker === 'ai' ? 'AI Lawyer' : 
+             msg.speaker === 'human' ? 'You' : 
+             msg.isComment ? 'Judge\'s Comment' : 'Judge'}
+          </span>
+          {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
+            <VoiceButton text={msg.content} />
+          )}
+        </div>
+        <div className="text-gray-700">
+          {formatMessage(msg.content)}
+        </div>
+        {msg.context && (
+          <motion.div 
+            initial={{ height: 0 }}
+            animate={{ height: "auto" }}
+            className="mt-2 text-sm text-gray-600 border-t border-gray-200 pt-2"
+          >
+            <strong>Supporting Context:</strong>
+            <p>{msg.context}</p>
+          </motion.div>
+        )}
+        {msg.score !== undefined && (
+          <div className="mt-2 text-sm text-gray-600">
+            Score Impact: {msg.score > 0 ? '+' : ''}{msg.score.toFixed(2)}
+          </div>
+        )}
       </div>
-      <div className="content">{msg.content}</div>
-      {msg.context && (
-        <div className="context">
-          <strong>Supporting Context:</strong>
-          <p>{msg.context}</p>
-        </div>
-      )}
-      {msg.score !== undefined && (
-        <div className="score">
-          Argument Score: {msg.score.toFixed(2)}
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 
   // Add cleanup effect
@@ -197,11 +236,17 @@ const HAIChatInterface = () => {
                 msg.speaker === 'human' 
                   ? 'bg-blue-50 text-blue-800 ml-auto' 
                   : msg.speaker === 'judge' 
-                  ? 'bg-purple-50 text-purple-800' 
+                  ? msg.isComment
+                    ? 'bg-purple-50/80 text-purple-800 border-l-4 border-purple-300'
+                    : 'bg-purple-50 text-purple-800'
                   : 'bg-green-50 text-green-800'
               }`}>
                 <div className="font-medium text-sm mb-1 flex justify-between items-center">
-                  <span>{msg.speaker === 'ai' ? 'AI Lawyer' : msg.speaker === 'human' ? 'You' : 'Judge'}</span>
+                  <span>
+                    {msg.speaker === 'ai' ? 'AI Lawyer' : 
+                     msg.speaker === 'human' ? 'You' : 
+                     msg.isComment ? 'Judge\'s Comment' : 'Judge'}
+                  </span>
                   {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
                     <VoiceButton text={msg.content} />
                   )}
@@ -307,4 +352,3 @@ const HAIChatInterface = () => {
 };
 
 export default HAIChatInterface;
-

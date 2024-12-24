@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 from dotenv import load_dotenv
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, ServiceContext
 from ..config import settings
 import random
 import spacy
@@ -49,6 +49,7 @@ class TurnResponse(BaseModel):
     human_score: float
     ai_score: float
     ipfs_hash: Optional[str] = None
+    judge_comment: Optional[str] = None
 
 class ProcessInputRequest(BaseModel):
     turn_type: str
@@ -60,18 +61,36 @@ class ConversationList(BaseModel):
 
 class VectorDBMixin:
     """Base class for vector database functionality"""
-    def __init__(self):
+    def __init__(self,case_id:str):
         # Initialize vector database
-        if not os.path.exists('case_reports'):
-            raise Exception("case_reports directory not found")
+        data_dir = f'app/case_reports/{case_id}'
+        print(f"Loading documents from: {data_dir}")  # Debug print
+        try:
+            # Add more file types and configure reader
+            documents = SimpleDirectoryReader(
+                input_dir=data_dir,
+                recursive=True,
+                required_exts=[".txt",".pdf"],  # Specify accepted file types
+                exclude_hidden=True
+            ).load_data()
             
-        documents = SimpleDirectoryReader(input_dir='case_reports').load_data()
-        self.index = VectorStoreIndex.from_documents(documents)
-        self.retriever = self.index.as_retriever()
+            print(f"Loaded {len(documents)} documents while creating the vector database")  # Debug print
+            print(documents)
+            
+            if not documents:
+                raise ValueError(f"No documents found in {data_dir}")
+            
+            # Configure chunking for better context
+            self.index = VectorStoreIndex.from_documents(documents)
+            self.retriever = self.index.as_retriever()
+            
+        except Exception as e:
+            print(f"Error loading documents: {e}")
+            raise
 
 class HumanAssistant(VectorDBMixin):
-    def __init__(self):
-        super().__init__()
+    def __init__(self,case_id:str):
+        super().__init__(case_id)
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
         self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
         self.context_checker = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
@@ -103,8 +122,8 @@ class HumanAssistant(VectorDBMixin):
         return decision[:3] == "Yes"
 
 class AILawyer(VectorDBMixin):
-    def __init__(self):
-        super().__init__()  # Initialize vector database
+    def __init__(self,case_id:str):
+        super().__init__(case_id)  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
         self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
 
@@ -132,8 +151,8 @@ class AILawyer(VectorDBMixin):
         return run.content
 
 class HumanLawyer:
-    def __init__(self):
-        self.assistant = HumanAssistant()
+    def __init__(self,case_id:str):
+        self.assistant = HumanAssistant(case_id)
 
     def ask(self):
         argument = input("Human Lawyer: ")  # Prompt for user input #here is the post request part about how the input will be taken in the case of the user 
@@ -234,49 +253,6 @@ class Judge:
             ai_score=0.0
         )
 
-    def append_to_case_pdf(self, case_id: str, conversation: LawyerContext):
-        """Append a single conversation entry to the case PDF"""
-        try:
-            pdf_filename = f'case_reports/case_{case_id}.pdf'
-            
-            # Create temporary PDF for new content
-            temp_pdf = f'case_reports/temp_{case_id}.pdf'
-            doc = SimpleDocTemplate(temp_pdf, pagesize=letter)
-            styles = getSampleStyleSheet()
-            
-            story = []
-            
-            # Add conversation entry
-            story.append(Paragraph(f"Speaker: {conversation.speaker}", styles['Heading4']))
-            story.append(Paragraph(f"Input: {conversation.input}", styles['Normal']))
-            story.append(Paragraph(f"Context: {conversation.context}", styles['Normal']))
-            story.append(Paragraph(f"Score: {conversation.score}", styles['Normal']))
-            story.append(Spacer(1, 12))
-            
-            # Build PDF
-            doc.build(story)
-            
-            # Merge with existing PDF
-            from PyPDF2 import PdfMerger, PdfReader
-            merger = PdfMerger()
-            
-            # Add original PDF if it exists
-            if os.path.exists(pdf_filename):
-                merger.append(PdfReader(open(pdf_filename, 'rb')))
-            
-            # Add new content
-            merger.append(PdfReader(open(temp_pdf, 'rb')))
-            
-            # Write final PDF
-            with open(pdf_filename, 'wb') as output_file:
-                merger.write(output_file)
-            
-            # Clean up temp file
-            os.remove(temp_pdf)
-            
-        except Exception as e:
-            print(f"Error appending to PDF: {e}")
-
     async def process_input(self, request: ProcessInputRequest):
         if request.turn_type != self.current_turn:
             raise HTTPException(status_code=400, detail="Not your turn to speak")
@@ -286,7 +262,7 @@ class Judge:
                 if not request.input_text:
                     raise HTTPException(status_code=400, detail="Human input required")
                 
-                human_lawyer = HumanLawyer()
+                human_lawyer = HumanLawyer(request.case_id)
                 response = human_lawyer.assistant.ask(request.input_text)
                 score = self.analyze_response(response[1], is_human=True)
                 
@@ -300,12 +276,13 @@ class Judge:
                 
                 # Add to conversation and PDF
                 self.conversations.append(human_response)
-                self.append_to_case_pdf(request.case_id, human_response)
+                #self.append_to_case_pdf(request.case_id, human_response)
                 
                 # Generate and add judge's commentary
                 judge_comment = self.generate_judge_comment(human_response)
+                print(judge_comment)
                 self.conversations.append(judge_comment)
-                self.append_to_case_pdf(request.case_id, judge_comment)
+                #self.append_to_case_pdf(request.case_id, judge_comment) # have to return this as the response as well for the same in this case along with what is the thing for the same for the same so in the turn response schema the judge's comment should also be returned 
 
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
@@ -318,11 +295,12 @@ class Judge:
                     case_status="open",
                     current_response=human_response,
                     human_score=self.human_score,
-                    ai_score=self.ai_score
+                    ai_score=self.ai_score,
+                    judge_comment=judge_comment.input
                 )
                 
             else:  # AI turn
-                ai_lawyer = AILawyer()
+                ai_lawyer = AILawyer(request.case_id)
                 ai_response_data = ai_lawyer.respond("Present your argument to the court")
                 score = self.analyze_response(ai_response_data["context"], is_human=False)
                 
@@ -336,12 +314,13 @@ class Judge:
                 
                 # Add to conversation and PDF
                 self.conversations.append(ai_response)
-                self.append_to_case_pdf(request.case_id, ai_response)
+                #self.append_to_case_pdf(request.case_id, ai_response)
                 
                 # Generate and add judge's commentary
                 judge_comment = self.generate_judge_comment(ai_response)
+                print(judge_comment)
                 self.conversations.append(judge_comment)
-                self.append_to_case_pdf(request.case_id, judge_comment)
+               # self.append_to_case_pdf(request.case_id, judge_comment)
 
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
@@ -354,7 +333,8 @@ class Judge:
                     case_status="open",
                     current_response=ai_response,
                     human_score=self.human_score,
-                    ai_score=self.ai_score
+                    ai_score=self.ai_score,
+                    judge_comment=judge_comment.input
                 )
 
         except Exception as e:
@@ -372,27 +352,7 @@ class Judge:
         closing_statement = self.generate_closing_statement(winner, score_difference)
         self.conversations.append(closing_statement)
 
-        # Create PDF file data to upload
-        pdf_data = BytesIO()
-        with open(f"case_reports/case_{case_id}.pdf", 'rb') as pdf_file:
-            pdf_data.write(pdf_file.read())
-        pdf_data.seek(0)
-        
-        files = {
-            'file': ('case_record.pdf', pdf_data, 'application/pdf')
-        }
-        
-        response = requests.post(
-            "https://api.pinata.cloud/pinning/pinFileToIPFS",
-            files=files,
-            headers={
-                'pinata_api_key': settings.pinata_api_key,
-                'pinata_secret_api_key': settings.pinata_secret_api_key
-            }
-        )
-        res = response.json()
-
-        ipfs_hash = f"https://ipfs.io/ipfs/{res['IpfsHash']}"
+       
 
         return TurnResponse(
             next_turn="none",
@@ -402,7 +362,6 @@ class Judge:
             current_response=closing_statement,
             human_score=self.human_score,
             ai_score=self.ai_score,
-            ipfs_hash=ipfs_hash
         )
       
 

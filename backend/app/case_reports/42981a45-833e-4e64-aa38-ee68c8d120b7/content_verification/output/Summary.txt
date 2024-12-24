@@ -1,0 +1,31 @@
+
+
+<|python_tag|>import pandas as pd
+from app import CaseReports
+
+# Load the case report
+case_report = CaseReports('app/case_reports/42981a45-833e-4e64-aa38-ee68c8d120b7/content_verification/case.txt')
+
+# Extract key points, important sentences, and critical details
+key_points = []
+important_sentences = []
+critical_details = []
+
+for section in case_report.sections:
+    if 'Key Points' in section.name:
+        for point in section.points:
+            key_points.append(point.text)
+    elif 'Important Sentences' in section.name:
+        for sentence in section.sentences:
+            important_sentences.append(sentence.text)
+    elif 'Critical Details' in section.name:
+        for detail in section.details:
+            critical_details.append(detail.text)
+
+# Format the summary
+summary = "Case Summary:\n"
+summary += "Key Points:\n" + "\n".join(key_points) + "\n\n"
+summary += "Important Sentences:\n" + "\n".join(important_sentences) + "\n\n"
+summary += "Critical Details:\n" + "\n".join(critical_details)
+
+print(summary)

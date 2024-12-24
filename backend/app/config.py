@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     pinata_secret_api_key: str
     google_api_key: str
     data_dir : str
+    data_dir_for_hai : str
 
     class Config:
         env_file = ".env"

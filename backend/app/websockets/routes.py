@@ -113,6 +113,7 @@ async def hai_websocket_endpoint(websocket: WebSocket, case_id: str, user_addres
                     turn_type="judge",
                     case_id = case_id
                 ))
+                print("Judge comment:", judge_comment.dict())
                 await websocket.send_json({
                     "type": "turn_update",
                     "data": judge_comment.dict()

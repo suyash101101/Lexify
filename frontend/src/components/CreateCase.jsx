@@ -24,10 +24,8 @@ const CreateCase = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [files, setFiles] = useState([]);
-  const [aiFiles, setAiFiles] = useState([]);
+  const [lawyer2Files, setLawyer2Files] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [caseId, setCaseId] = useState(null);
-  const [showAiEvidence, setShowAiEvidence] = useState(false);
 
   const encryptData = (data) => {
     return CryptoJS.AES.encrypt(
@@ -55,57 +53,23 @@ const CreateCase = () => {
     setFiles(files.filter((_, i) => i !== index));
   };
 
-  const handleAiFileUpload = (event) => {
+  const handleAIFileUpload = (event) => {
     const newFiles = Array.from(event.target.files).map(file => ({
       file,
       description: '',
       original_name: file.name
     }));
-    setAiFiles([...aiFiles, ...newFiles]);
+    setLawyer2Files([...lawyer2Files, ...newFiles]);
   };
 
-  const handleAiDescriptionChange = (index, description) => {
-    const updatedFiles = [...aiFiles];
+  const handleAIDescriptionChange = (index, description) => {
+    const updatedFiles = [...lawyer2Files];
     updatedFiles[index].description = description;
-    setAiFiles(updatedFiles);
+    setLawyer2Files(updatedFiles);
   };
 
-  const handleRemoveAiFile = (index) => {
-    setAiFiles(aiFiles.filter((_, i) => i !== index));
-  };
-
-  const submitAiEvidence = async (caseId) => {
-    try {
-      const aiEvidences = await Promise.all(aiFiles.map(async (fileObj) => {
-        const ipfsHash =  `placeholder-${fileObj.original_name}`;
-        return {
-          ipfs_hash: ipfsHash,
-          description: fileObj.description,
-          original_name: fileObj.original_name
-        };
-      }));
-
-      const aiPayload = {
-        lawyer_type: "AI",
-        evidences: aiEvidences
-      };
-
-      const aiResponse = await fetch(`${import.meta.env.VITE_API_URL}/cases/${caseId}/evidence`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(aiPayload)
-      });
-
-      if (!aiResponse.ok) {
-        throw new Error('Failed to submit AI evidence');
-      }
-
-    } catch (error) {
-      console.error('Error submitting AI evidence:', error);
-      throw error;
-    }
+  const handleRemoveAIFile = (index) => {
+    setLawyer2Files(lawyer2Files.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -119,6 +83,15 @@ const CreateCase = () => {
         lawyer1_address: user.sub,
         files: await Promise.all(files.map(async (fileObj) => {
           const ipfsHash = `placeholder-${fileObj.original_name}`;
+          
+          return {
+            ipfs_hash: ipfsHash,
+            description: fileObj.description,
+            original_name: fileObj.original_name
+          };
+        })),
+        lawyer2_files: await Promise.all(lawyer2Files.map(async (fileObj) => {
+          const ipfsHash = `ai-placeholder-${fileObj.original_name}`;
           
           return {
             ipfs_hash: ipfsHash,
@@ -142,13 +115,6 @@ const CreateCase = () => {
       }
 
       const data = await response.json();
-      setCaseId(data.case_id);
-      console.log(data.case_id)
-      
-      if (aiFiles.length > 0) {
-        await submitAiEvidence(data.case_id);
-      }
-      
       navigate(`/cases/${data.case_id}`);
     } catch (error) {
       console.error('Error creating case:', error);
@@ -216,7 +182,7 @@ const CreateCase = () => {
                 transition={{ delay: 0.5 }}
                 className="space-y-4"
               >
-                <label className="block text-sm font-medium text-gray-700">Evidence Files</label>
+                <label className="block text-sm font-medium text-gray-700">Your Evidence Files</label>
                 <div className="flex items-center justify-center w-full">
                   <label className="w-full flex flex-col items-center px-4 py-6 bg-sky-50/50 text-sky-400 border-2 border-sky-100 border-dashed cursor-pointer hover:bg-sky-100 transition-all">
                     <Upload className="w-8 h-8 mb-2" />
@@ -262,50 +228,53 @@ const CreateCase = () => {
                 ))}
               </motion.div>
 
+              {/* AI Evidence */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
                 className="space-y-4"
               >
+              <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-700">AI Evidence Files</label>
                 <div className="flex items-center justify-center w-full">
-                  <label className="w-full flex flex-col items-center px-4 py-6 bg-sky-50/50 text-sky-400 border-2 border-sky-100 border-dashed cursor-pointer hover:bg-sky-100 transition-all">
+                  <label className="w-full flex flex-col items-center px-4 py-6 bg-purple-50/50 text-purple-400 border-2 border-purple-100 border-dashed cursor-pointer hover:bg-purple-100 transition-all">
                     <Upload className="w-8 h-8 mb-2" />
-                    <span className="text-sm">Drop files here or click to upload</span>
+                    <span className="text-sm">Drop AI files here or click to upload</span>
                     <input
                       type="file"
                       hidden
                       multiple
-                      onChange={handleAiFileUpload}
+                      onChange={handleAIFileUpload}
                     />
                   </label>
                 </div>
+              </div>
               </motion.div>
 
               {/* AI File List */}
               <motion.div layout className="space-y-3">
-                {aiFiles.map((fileObj, index) => (
+                {lawyer2Files.map((fileObj, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="flex items-start space-x-4 bg-gray-50 p-4 rounded-xl"
+                    className="flex items-start space-x-4 bg-purple-50 p-4 rounded-xl"
                   >
                     <div className="flex-1 space-y-2">
-                      <p className="text-sm font-medium text-gray-700">{fileObj.original_name}</p>
+                      <p className="text-sm font-medium text-purple-700">{fileObj.original_name}</p>
                       <input
                         type="text"
                         value={fileObj.description}
-                        onChange={(e) => handleAiDescriptionChange(index, e.target.value)}
+                        onChange={(e) => handleAIDescriptionChange(index, e.target.value)}
                         placeholder="Add AI file description"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       />
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleRemoveAiFile(index)}
+                      onClick={() => handleRemoveAIFile(index)}
                       className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                     >
                       <X className="w-5 h-5" />
@@ -343,3 +312,4 @@ const CreateCase = () => {
 };
 
 export default CreateCase;
+
