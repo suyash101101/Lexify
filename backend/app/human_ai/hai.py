@@ -33,6 +33,14 @@ Settings.embed_model = HuggingFaceEmbedding(
     model_name="all-MiniLM-L6-v2"
 )
 
+galadriel_config = {
+    "model": OpenAILike(
+        id="llama3.1:70b",
+        api_key=os.getenv("GALADRIEL_API_KEY"),
+        base_url="https://api.galadriel.com/v1"
+    )
+}
+
 # Pydantic Models
 class LawyerContext(BaseModel):
     input: str
@@ -59,12 +67,16 @@ class ProcessInputRequest(BaseModel):
 class ConversationList(BaseModel):
     conversations: List[LawyerContext]
 
+class messageContext(BaseModel):
+    input : str
+    context : str
+
 class VectorDBMixin:
     """Base class for vector database functionality"""
     def __init__(self,case_id:str):
         # Initialize vector database
         data_dir = f'app/case_reports/{case_id}'
-        print(f"Loading documents from: {data_dir}")  # Debug print
+        # print(f"Loading documents from: {data_dir}")  # Debug print
         try:
             # Add more file types and configure reader
             documents = SimpleDirectoryReader(
@@ -74,8 +86,8 @@ class VectorDBMixin:
                 exclude_hidden=True
             ).load_data()
             
-            print(f"Loaded {len(documents)} documents while creating the vector database")  # Debug print
-            print(documents)
+            # print(f"Loaded {len(documents)} documents while creating the vector database")  # Debug print
+            # print(documents)
             
             if not documents:
                 raise ValueError(f"No documents found in {data_dir}")
@@ -91,9 +103,17 @@ class VectorDBMixin:
 class HumanAssistant(VectorDBMixin):
     def __init__(self,case_id:str):
         super().__init__(case_id)
+        # Initialize knowledge base
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
-        self.context_checker = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        
+        # Initialize agents with Galadriel
+                    # self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
+            #knowledge_base=self.knowledge_base, search_knowledge=True)
+        # print("initializing the agent for the same")
+        self.summarising_agent = Agent(model=Ollama(id = "llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        
+        self.context_checker = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,debug_mode = True)
+        # print("initailized the agent for the same")
 
     def ask(self,user_input):
         context_needed = self.check_context_need(user_input)
@@ -109,6 +129,7 @@ class HumanAssistant(VectorDBMixin):
             return [user_input,summarized_response]
         else:
             return [user_input,"No context needed"]
+        #later change this to the output schema only 
         
     def check_context_need(self, user_input):
         prompt = (
@@ -125,7 +146,8 @@ class AILawyer(VectorDBMixin):
     def __init__(self,case_id:str):
         super().__init__(case_id)  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
+        # self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
+        self.RagAgent = Agent(model=Ollama(id="llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
 
     def respond(self, query):
         # Generate response using insights
@@ -143,7 +165,6 @@ class AILawyer(VectorDBMixin):
             f"Now assuming that you are fighting a case in a court of law, respond to the following statement: {query}"
             "This is the statement of the opposing lawyer. You need to respond to it in a way that is both persuasive and legal."
             "If he is talking to you in a casual manner, you should respond in a casual manner too."
-            "Always refer to the opposite lawyer when speaking and dont use anything other than fellow lawyer to start a conversation."
         )
 
         run: RunResponse = self.RagAgent.run(prompt)
@@ -154,13 +175,16 @@ class HumanLawyer:
     def __init__(self,case_id:str):
         self.assistant = HumanAssistant(case_id)
 
-    def ask(self):
-        argument = input("Human Lawyer: ")  # Prompt for user input #here is the post request part about how the input will be taken in the case of the user 
+    def ask(self, argument):
         response = self.assistant.ask(argument)
         
         # Format output with input and context
-        output = f"Input: {response[0]}. Context: {response[1]}."
-        return output # pydantic model with the schema should be there in this case
+        output = messageContext(
+            input = response[0],
+            context = response[1]
+        )
+        return output 
+    # pydantic model with the schema should be there in this case
     
 #Judge and Simulation Logic 
 
@@ -175,8 +199,9 @@ class Judge:
         self.coherence_model = pipeline("text-classification", model="textattack/bert-base-uncased-snli")
         self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         self.current_turn = None  # Track whose turn it is
-        self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
-        self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        # self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        self.judge = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,debug_mode= True)        # self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        self.score_analyser = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,debug_mode = True)
 
     def analyze_response(self, response, is_human):
         """Enhanced response analysis with chunking"""
@@ -263,13 +288,13 @@ class Judge:
                     raise HTTPException(status_code=400, detail="Human input required")
                 
                 human_lawyer = HumanLawyer(request.case_id)
-                response = human_lawyer.assistant.ask(request.input_text)
-                score = self.analyze_response(response[1], is_human=True)
+                response = human_lawyer.ask(request.input_text)
+                score = self.analyze_response(response.input, is_human=True)
                 
                 # Create human's response
                 human_response = LawyerContext(
                     input=request.input_text,
-                    context=response[1],
+                    context=response.context,
                     speaker="human",
                     score=score
                 )
@@ -301,7 +326,7 @@ class Judge:
                 
             else:  # AI turn
                 ai_lawyer = AILawyer(request.case_id)
-                ai_response_data = ai_lawyer.respond("Present your argument to the court")
+                ai_response_data = ai_lawyer.respond(request.input_text) # or else let it be self.conversations[-2]
                 score = self.analyze_response(ai_response_data["context"], is_human=False)
                 
                 # Create AI's response
@@ -370,7 +395,7 @@ class Judge:
         prompt = (
             "You are an experienced judge presiding over a case. "
             "Provide a brief comment on the last argument presented. "
-            f"The {last_response.speaker} lawyer argued: {last_response.context}\n"
+            f"The {last_response.speaker} lawyer argued: {last_response.input}\n"
             "Give your reaction and direct the next lawyer to proceed."
         )
         

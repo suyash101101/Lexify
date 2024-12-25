@@ -43,7 +43,21 @@ const HAIChatInterface = () => {
         }
         
         if (data.type === "state_update" || data.type === "turn_update") {
-          const state = data.data;
+          const state = data.data; //getting the whole turn response from hai.py
+        //   TurnResponse(
+        //     next_turn=self.current_turn,
+        //     case_status="open",
+        //     current_response=first_directive,
+        //     human_score=0.0,
+        //     ai_score=0.0
+        // )
+        //this contains the first directive which is the lawyer context 
+      //   LawyerContext(
+      //     input=f"The {self.current_turn} lawyer will present first.",
+      //     context="Please present your opening argument.",
+      //     speaker="judge",
+      //     score=0.0
+      // )
           console.log("game state update: ",state)
           setGameState(state);
           
@@ -90,13 +104,13 @@ const HAIChatInterface = () => {
     startSimulation();
   }, [caseId]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
     
     sendMessage(JSON.stringify({
       type: 'human_input',
-      content: input
+      content: input //this is what the user types in the input box
     }));
     
     setInput('');
