@@ -1,59 +1,49 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-    content: [
-      "./index.html",
-      "./src/**/*.{js,ts,jsx,tsx}",
-    ],
-    theme: {
-      extend: {
-        colors: {
-          primary: {
-            50: '#f0f9ff',
-            100: '#e0f2fe',
-            200: '#bae6fd',
-            300: '#7dd3fc',
-            400: '#38bdf8',
-            500: '#0ea5e9',
-          },
-          secondary: {
-            50: '#eff6ff',
-            100: '#dbeafe',
-            200: '#bfdbfe',
-            300: '#93c5fd',
-            400: '#60a5fa',
-            500: '#3b82f6',
-          }
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          main: '#000000',
+          light: '#333333',
         },
-        backgroundColor: {
-          'glass': 'rgba(255, 255, 255, 0.8)',
-        },
-        backdropFilter: {
-          'glass': 'blur(12px)',
-        },
-        animation: {
-          'blob': 'blob 7s infinite',
-          'float': 'float 6s ease-in-out infinite',
-          'glow': 'glow 2s ease-in-out infinite alternate',
-        },
-        keyframes: {
-          blob: {
-            '0%': { transform: 'translate(0px, 0px) scale(1)' },
-            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-            '100%': { transform: 'translate(0px, 0px) scale(1)' },
-          },
-          float: {
-            '0%, 100%': { transform: 'translateY(0)' },
-            '50%': { transform: 'translateY(-10px)' },
-          },
-          glow: {
-            '0%': { boxShadow: '0 0 5px rgba(56, 189, 248, 0.5)' },
-            '100%': { boxShadow: '0 0 20px rgba(56, 189, 248, 0.8)' },
-          },
+        accent: {
+          white: '#FFFFFF',
+          gray: '#F5F5F5',
         },
       },
+      fontFamily: {
+        display: ['Poppins', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
+      },
+      boxShadow: {
+        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        md: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+      },
+      maxWidth: {
+        container: '1200px',
+      },
+      spacing: {
+        xs: '4px',
+        sm: '8px',
+        md: '16px',
+        lg: '24px',
+        xl: '48px',
+        '2xl': '64px',
+      },
+      borderRadius: {
+        sm: '8px',
+        md: '12px',
+        lg: '16px',
+      },
     },
-    plugins: [],
-  }
+  },
+  plugins: [],
+}
   
   

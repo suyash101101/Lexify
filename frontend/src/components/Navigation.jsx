@@ -1,183 +1,201 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Scale, User, MessageSquare, Menu, X, Briefcase } from 'lucide-react';
+import { Scale, Menu, X, ChevronDown } from 'lucide-react';
+import { Button } from './shared/Button';
+
+const NavLink = ({ to, children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isActive = location.pathname === to;
+  
+  return (
+    <button
+      onClick={() => navigate(to)}
+      className={`
+        px-4 py-2 text-sm font-medium transition-all duration-200 rounded-full
+        ${isActive 
+          ? 'text-primary-main bg-primary-main/5' 
+          : 'text-primary-main/60 hover:text-primary-main hover:bg-primary-main/5'
+        }
+      `}
+    >
+      {children}
+    </button>
+  );
+};
+
+NavLink.propTypes = {
+  to: PropTypes.string.isRequired,
+  children: PropTypes.node.isRequired,
+};
 
 const Navigation = () => {
   const navigate = useNavigate();
-  const { logout, user } = useAuth0();
-  const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { logout, user, isAuthenticated } = useAuth0();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const navItems = [
-    { icon: <Scale className="w-5 h-5" />, text: 'Cases', path: '/cases' },
-    { icon: <User className="w-5 h-5" />, text: 'Profile', path: '/profile' },
-    { icon: <MessageSquare className="w-5 h-5" />, text: 'Contact', path: '/contactus' },
-    { icon: <Briefcase className="w-5 h-5" />, text: 'Consultancy', path: '/consultancy' }, // Add this line
-  ];
+  // List of paths where we use DashboardLayout (hide navbar here)
+  const dashboardPaths = ['/cases', '/consultancy', '/contact', '/profile'];
+  
+  // Check if current path is a dashboard path
+  const isDashboardPage = dashboardPaths.some(path => 
+    location.pathname.startsWith(path)
+  );
 
-  const NavLink = ({ item }) => {
-    const isActive = location.pathname === item.path;
-    
-    return (
-      <motion.button
-        whileHover={{ 
-          scale: 1.05,
-          backgroundColor: "rgba(255, 255, 255, 0.1)",
-          textShadow: "0 0 8px rgba(255, 255, 255, 0.5)"
-        }}
-        whileTap={{ scale: 0.98 }}
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        onClick={() => navigate(item.path)}
-        className={`flex items-center space-x-2 px-4 py-2 rounded-xl
-          transition-all duration-300 group
-          ${isActive 
-            ? 'text-blue-400 font-medium' // Changed from text-white
-            : 'text-blue-300/70 hover:text-blue-400' // Changed from text-white/70 hover:text-white
-          }`}
-      >
-        <motion.span
-          whileHover={{ scale: 1.1 }}
-          initial={{ opacity: 0.7 }}
-          animate={{ opacity: isActive ? 1 : 0.7 }}
-          className="group-hover:opacity-100 transition-opacity"
-        >
-          {item.icon}
-        </motion.span>
-        <span>{item.text}</span>
-      </motion.button>
-    );
-  };
+  // Don't render navbar on dashboard pages
+  if (isDashboardPage) {
+    return null;
+  }
 
   return (
-    <motion.nav 
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 100 }}
-      className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          {/* Remove the Lexify logo section completely */}
-          
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-2">
-            {navItems.map((item, index) => (
-              <motion.div
-                key={item.path}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <NavLink item={item} />
-              </motion.div>
-            ))}
-          </div>
-
-          {/* User Menu */}
-          <div className="flex items-center space-x-4">
-            <motion.div
-              whileHover={{ 
-                scale: 1.02,
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-              }}
-              className="hidden md:flex items-center space-x-3 px-4 py-2 rounded-xl"
-            >
-              <motion.img
-                whileHover={{ scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400 }}
-                src={user?.picture}
-                alt={user?.name}
-                className="w-9 h-9 rounded-full"
-              />
-              <span className="text-blue-400/90 font-medium">{user?.name}</span> 
-            </motion.div>
-
-            <motion.button
-              whileHover={{ 
-                scale: 1.02,
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-              }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => logout()}
-              className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-xl
-                       text-blue-400/90 font-medium group" 
-            >
-              <motion.span
-                animate={{ 
-                  rotate: [0, 10, 0],
-                  transition: { duration: 2, repeat: Infinity }
-                }}
-                className="opacity-70 group-hover:opacity-100"
-              >
-                <LogOut className="w-4 h-4" />
-              </motion.span>
-              <span>Logout</span>
-            </motion.button>
-
-            {/* Mobile menu button */}
-            <motion.button
-              whileHover={{ 
-                scale: 1.05,
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-              }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-xl text-white"
-            >
-              <motion.div
-                animate={{ rotate: isOpen ? 90 : 0 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </motion.div>
-            </motion.button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ 
-              opacity: 1, 
-              height: "auto",
-              transition: {
-                height: { type: "spring", stiffness: 300, damping: 30 }
-              }
-            }}
-            exit={{ 
-              opacity: 0, 
-              height: 0,
-              transition: { duration: 0.2 }
-            }}
-            className="md:hidden backdrop-blur-lg"
+    <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-3xl">
+      <nav className="bg-accent-white/80 backdrop-blur-md rounded-full px-6 py-3 
+                     border border-primary-main/10 shadow-[0_0_0_1px_rgba(0,0,0,0.03)]
+                     hover:shadow-[0_0_0_1px_rgba(0,0,0,0.05)] transition-all duration-300">
+        <div className="flex items-center justify-between gap-4 md:gap-8">
+          {/* Logo */}
+          <div 
+            onClick={() => navigate('/')}
+            className="flex items-center cursor-pointer shrink-0"
           >
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="p-4 space-y-2"
-            >
-              {navItems.map((item, index) => (
-                <motion.div
-                  key={item.path}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
+            <div className="w-8 h-8 bg-primary-main rounded-full flex items-center justify-center mr-2">
+              <Scale className="w-4 h-4 text-accent-white" />
+            </div>
+            <span className="text-lg font-display font-bold text-primary-main">
+              Lexify
+            </span>
+          </div>
+
+          {/* Navigation Links - Desktop */}
+          <div className="hidden md:flex items-center space-x-1">
+            <NavLink to="/login">Cases</NavLink>
+            <NavLink to="/login">Consultancy</NavLink>
+            <NavLink to="/login">Contact</NavLink>
+          </div>
+
+          {/* User Menu - Desktop */}
+          <div className="hidden md:flex items-center space-x-4">
+            {isAuthenticated ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center space-x-3 px-4 py-2 bg-primary-main/5 rounded-full
+                            hover:bg-primary-main/10 transition-colors duration-200"
                 >
-                  <NavLink item={item} />
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
+                  {user?.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.name}
+                      className="w-6 h-6 rounded-full border border-primary-main/10"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-primary-main/20 flex items-center justify-center">
+                      <span className="text-xs font-medium text-primary-main">
+                        {user?.name?.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-primary-main max-w-[100px] truncate">
+                    {user?.name}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-primary-main/60" />
+                </button>
+
+                {/* Profile Dropdown */}
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-primary-main/10 py-2">
+                    <button
+                      onClick={() => navigate('/profile')}
+                      className="w-full text-left px-4 py-2 text-sm text-primary-main/60 hover:text-primary-main hover:bg-primary-main/5"
+                    >
+                      Profile
+                    </button>
+                    <button
+                      onClick={() => logout()}
+                      className="w-full text-left px-4 py-2 text-sm text-primary-main/60 hover:text-primary-main hover:bg-primary-main/5"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/login')}
+                className="rounded-full"
+              >
+                Sign In
+              </Button>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden p-2 hover:bg-primary-main/5 rounded-full"
+          >
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {isOpen && (
+          <div className="md:hidden mt-4 pt-4 border-t border-primary-main/10">
+            <div className="space-y-2">
+              <NavLink to="/cases">Cases</NavLink>
+              <NavLink to="/consultancy">Consultancy</NavLink>
+              <NavLink to="/contact">Contact</NavLink>
+              
+              {isAuthenticated ? (
+                <>
+                  <div className="flex items-center space-x-3 px-4 py-2 my-2">
+                    {user?.picture ? (
+                      <img
+                        src={user.picture}
+                        alt={user.name}
+                        className="w-6 h-6 rounded-full border border-primary-main/10"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-primary-main/20 flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary-main">
+                          {user?.name?.charAt(0)}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-primary-main">
+                      {user?.name}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logout()}
+                    className="w-full rounded-full mt-2"
+                  >
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/login')}
+                  className="w-full rounded-full mt-2"
+                >
+                  Sign In
+                </Button>
+              )}
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.nav>
+      </nav>
+    </header>
   );
 };
 
