@@ -11,7 +11,7 @@ def Summarize(filepath):
     # Initialize the Summariser agent with specified model and tools
     Summariser = Agent(
         name="Summariser",
-        model = Ollama(id="llama3.2"),
+        model = Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
         tools=[FileTools()]
     )
 

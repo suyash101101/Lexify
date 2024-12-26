@@ -10,7 +10,7 @@ def FlowAnalysis(filepath):
     # Initialize the Analyzer agent with specified model and tools
     Analyzer = Agent(
         name="Analyzer",
-        model=Ollama(id="llama3.2"),
+        model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
         tools=[FileTools()],
         debug_mode=True
     )
