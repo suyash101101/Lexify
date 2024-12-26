@@ -33,14 +33,6 @@ Settings.embed_model = HuggingFaceEmbedding(
     model_name="all-MiniLM-L6-v2"
 )
 
-galadriel_config = {
-    "model": OpenAILike(
-        id="llama3.1:70b",
-        api_key=os.getenv("GALADRIEL_API_KEY"),
-        base_url="https://api.galadriel.com/v1"
-    )
-}
-
 # Pydantic Models
 class LawyerContext(BaseModel):
     input: str
@@ -110,9 +102,9 @@ class HumanAssistant(VectorDBMixin):
                     # self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
             #knowledge_base=self.knowledge_base, search_knowledge=True)
         # print("initializing the agent for the same")
-        self.summarising_agent = Agent(model=Ollama(id = "llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
         
-        self.context_checker = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,debug_mode = True)
+        self.context_checker = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
         # print("initailized the agent for the same")
 
     def ask(self,user_input):
@@ -136,18 +128,26 @@ class HumanAssistant(VectorDBMixin):
             "You are an intelligent assistant to a lawyer. "
             "Based on the following statement by a lawyer, determine if additional legal context is needed:\n"
             f"'{user_input}'\n"
-            "As long as the sentence is not a casual conversation sentence respond with 'yes' else 'no'"
+            "Please respond with 'yes' if the statement references specific legal issues or evidence that require additional context. "
+            "Respond with 'no' if the statement is a casual greeting or does not reference any legal matters."
         )
+        
+        # Run the context checker with the refined prompt
         run: RunResponse = self.context_checker.run(prompt)
-        decision = run.content
-        return decision[:3] == "Yes"
+        decision = run.content.strip()
+        
+        # Use regular expressions to check for 'yes' or 'no' responses
+        if re.match(r'(?i)yes', decision):
+            return True
+        else:
+            return False
 
 class AILawyer(VectorDBMixin):
     def __init__(self,case_id:str):
         super().__init__(case_id)  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
         # self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
-        self.RagAgent = Agent(model=Ollama(id="llama3.2"),knowledge_base=self.knowledge_base, search_knowledge=True, debug_mode=True, show_tool_calls=True)
+        self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
 
     def respond(self, query):
         # Generate response using insights
@@ -200,8 +200,8 @@ class Judge:
         self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         self.current_turn = None  # Track whose turn it is
         # self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
-        self.judge = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,debug_mode= True)        # self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
-        self.score_analyser = Agent(model=OpenAILike(id="llama3.1:70b",api_key=os.getenv("GALADRIEL_API_KEY"),base_url="https://api.galadriel.com/v1"),markdown=True,debug_mode = True)
+        self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))        # self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
 
     def analyze_response(self, response, is_human):
         """Enhanced response analysis with chunking"""

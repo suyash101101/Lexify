@@ -1,0 +1,61 @@
+AITest.txt: Recommendation: **Do not verify.**
+
+Reasoning:
+
+The provided analysis clearly states that 100% of the text is AI-generated. The prompt specifies that if the AI-generated content is greater than 20%, the case briefing should not be verified. Therefore, since the AI percentage is 100%, the recommendation is to **not verify** the case.
+Analysis_Report.txt: **Recommendation: Do Not Verify**
+
+**Reasoning:**
+
+The provided text contains clear indicators of AI-generated content exceeding the 20% threshold. Here's why:
+
+1.  **Meta-commentary and Self-Referential Language:** The text begins with "Based on the case briefing provided, I have analyzed the document..." and "After reviewing the content_verification/case.txt file..." This is typical of AI language, which often describes its own process. These phrases also reference internal file structures "content_verification/case.txt", which a human analyst would not do in a publicly shared analysis.
+2.  **Structured Analysis:** The format of the analysis is highly structured, with numbered points summarizing connected scenarios, bulleted lists of missing parts/inconsistencies, and explicit "Recommendations for improvement." This rigid structure is characteristic of AI outputs.
+3.  **Generic Language:**  Phrases like "appears to be connected," "minor gaps in information," and "comprehensive understanding" are somewhat generic and lack the specificity and nuance often found in human analysis.
+4. **Artificial Separation of Concepts:** The separation of 'Missing Parts' from the overall analysis seems overly formalized and not how a human would phrase a review.
+5.  **Explicit Call for Improvement:**  The explicit section of "Recommendations for improvement" is another red flag, as this is more often seen with AI providing feedback.
+
+**Conclusion:**
+
+Due to the strong evidence of AI-generated content exceeding the 20% threshold, this case briefing should **not be verified**. The self-referential nature, structured format, and overall language suggest it is predominantly written by an AI.
+References_Analysis_Report.txt: Okay, let's analyze this case briefing to determine if it should be verified.
+
+**Analysis:**
+
+The core of this assessment hinges on identifying AI-generated text and quantifying its percentage. Here's a breakdown:
+
+* **AI-Generated Indicators:** The language used is very analytical and objective. Phrases like "I have analyzed", "provide direct evidence", "suggest that", "may show similarities", "without specific information", "provides valuable context", and the overall structure and clear numbered list presentation indicate likely AI involvement.
+* **Quantifying AI Text:** It's difficult to pinpoint the exact percentage of AI involvement without knowing how the text was generated. However, given that the entire report feels formulaic in its analysis and uses phrases that are not common in human written reviews, it's highly likely that a large portion (well above 20%) of the text is AI-generated. The consistent tone and structure throughout strongly suggest AI assistance.
+
+**Recommendation:**
+
+**Do not verify the case briefing.**
+
+**Reasoning:**
+
+The content of this case briefing report contains significant AI-generated content based on the tone and structure of the text.
+
+Because the AI involvement is estimated at well above the 20% threshold, the case briefing should not be verified.
+Summary.txt: Okay, I understand. Here's my analysis and recommendation:
+
+**Analysis**
+
+The provided Python code snippet aims to extract key information from a text file named `case.txt`. It uses regular expressions to identify and print:
+
+*   **Key Points:** Sentences or phrases that start with a capital letter, contain at least one lowercase letter, and end with a capital letter.
+*   **Important Sentences:** Sequences of characters ending with a period, question mark, or exclamation point, which are often sentences.
+*   **Critical Details:** Sequences of one or more digits, often used to extract numeric information.
+
+**Content Verification Check:**
+
+To determine if the case briefing should be verified, I need to determine the percentage of AI-generated content within the content of `case.txt`. This code snippet can not do that because it doesn't analyze the text itself to see if it's AI-generated. It only extracts elements from the text. 
+
+Therefore, based on the prompt, I cannot do a content verification, but I can provide the correct recommendation based on the rules of the prompt. 
+
+**Recommendation**
+
+**Do Not Verify**. 
+
+**Reasoning**
+
+The provided code is solely an extraction tool. It doesn't provide any mechanism to determine if the case text is AI-generated. Since the criteria is to flag anything greater than 20 percent of AI generated content and this script does not identify AI-generated text, it is not possible to determine if the `case.txt` document is greater than 20% AI-generated. Therefore, based on the criteria provided, I must recommend not verifying.

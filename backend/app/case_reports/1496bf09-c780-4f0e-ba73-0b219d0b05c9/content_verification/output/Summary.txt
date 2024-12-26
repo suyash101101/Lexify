@@ -1,0 +1,24 @@
+
+
+<|python_tag|>import re
+
+with open('app/case_reports/1496bf09-c780-4f0e-ba73-0b219d0b05c9/content_verification/case.txt') as file:
+    text = file.read()
+
+# Extract key points
+key_points = re.findall(r'[A-Z].*?[a-z].*[A-Z].*', text)
+print('Key Points:')
+for point in key_points:
+    print(point)
+
+# Extract important sentences
+important_sentences = re.findall(r'[^.!?]*[.!?]', text)
+print('\nImportant Sentences:')
+for sentence in important_sentences:
+    print(sentence)
+
+# Extract critical details
+critical_details = re.findall(r'\d+', text)
+print('\nCritical Details:')
+for detail in critical_details:
+    print(detail)
