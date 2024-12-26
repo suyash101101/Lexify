@@ -2,9 +2,7 @@ from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
 from phi.knowledge.llamaindex import LlamaIndexKnowledgeBase
 from phi.agent import Agent, RunResponse
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from phi.model.openai.like import OpenAILike
 from phi.model.google import Gemini
-from phi.model.ollama import Ollama
 import os
 from dotenv import load_dotenv
 

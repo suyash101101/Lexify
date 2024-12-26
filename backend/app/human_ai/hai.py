@@ -4,15 +4,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 from dotenv import load_dotenv
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, ServiceContext
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
 from ..config import settings
-import random
-import spacy
 from phi.model.google import Gemini
 from dotenv import load_dotenv
 from phi.agent import Agent, RunResponse
-from phi.model.openai.like import OpenAILike
-from phi.model.ollama import Ollama
 from phi.knowledge.llamaindex import LlamaIndexKnowledgeBase
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from reportlab.lib.pagesizes import letter
@@ -21,7 +17,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from io import BytesIO
-import requests
 import re
 
 load_dotenv()

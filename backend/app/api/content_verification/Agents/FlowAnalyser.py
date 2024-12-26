@@ -1,7 +1,6 @@
 import os
 from phi.agent import Agent, RunResponse
 from phi.model.google import Gemini
-from phi.model.ollama import Ollama
 from phi.tools.file import FileTools
 from dotenv import load_dotenv
 load_dotenv()
