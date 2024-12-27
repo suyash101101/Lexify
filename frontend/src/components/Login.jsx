@@ -51,10 +51,10 @@ const Login = () => {
             onClick={() => loginWithRedirect({
               appState: { returnTo: location.state?.returnTo || '/cases' }
             })}
-            className="w-full"
+            className="w-full sm:w-auto text-sm sm:text-base py-2.5 px-5 sm:py-3 sm:px-6 hover:opacity-90 transition-opacity"
           >
             <span>Sign in with Google</span>
-            <ArrowRight className="w-5 h-5 ml-2" />
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
           </Button>
 
           {/* Terms */}

@@ -11,17 +11,25 @@ import ContactUs from './components/ContactUs';
 import Consulting from './components/Consulting';
 import HAIChatInterface from './components/HAIChatInterface';
 import Login from './components/Login';
+import { Loading } from './components/shared/Loading';
+import Pricing from './pages/Pricing';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Blog from './pages/Blog';
+import About from './pages/About';
+import Footer from './components/shared/Footer';
+
 
 // Wrapper for authenticated routes with DashboardLayout
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth0();
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/" />;
+    return <Navigate to="/login" />;
   }
 
   return <DashboardLayout>{children}</DashboardLayout>;
@@ -39,6 +47,11 @@ const App = () => {
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/about" element={<About />} />
 
 
         {/* Protected Routes - All wrapped with DashboardLayout */}
@@ -74,6 +87,10 @@ const App = () => {
           </PrivateRoute>
         } />
       </Routes>
+
+      {/* Only show Footer on public routes */}
+      {!isAuthenticated && <Footer />}
+
     </>
   );
 };

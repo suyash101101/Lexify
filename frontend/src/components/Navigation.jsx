@@ -52,11 +52,11 @@ const Navigation = () => {
   }
 
   return (
-    <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-3xl">
-      <nav className="bg-accent-white/80 backdrop-blur-md rounded-full px-6 py-3 
-                     border border-primary-main/10 shadow-[0_0_0_1px_rgba(0,0,0,0.03)]
+    <header className="fixed top-0 sm:top-6 left-0 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[95%] sm:max-w-3xl">
+      <nav className="bg-accent-white/80 backdrop-blur-md sm:rounded-full px-4 sm:px-6 py-3 
+                     border-b sm:border border-primary-main/10 shadow-[0_0_0_1px_rgba(0,0,0,0.03)]
                      hover:shadow-[0_0_0_1px_rgba(0,0,0,0.05)] transition-all duration-300">
-        <div className="flex items-center justify-between gap-4 md:gap-8">
+        <div className="flex items-center justify-between gap-4">
           {/* Logo */}
           <div 
             onClick={() => navigate('/')}
@@ -148,9 +148,9 @@ const Navigation = () => {
         {isOpen && (
           <div className="md:hidden mt-4 pt-4 border-t border-primary-main/10">
             <div className="space-y-2">
-              <NavLink to="/cases">Cases</NavLink>
-              <NavLink to="/consultancy">Consultancy</NavLink>
-              <NavLink to="/contact">Contact</NavLink>
+              <NavLink to="/login" className="block w-full">Cases</NavLink>
+              <NavLink to="/login" className="block w-full">Consultancy</NavLink>
+              <NavLink to="/login" className="block w-full">Contact</NavLink>
               
               {isAuthenticated ? (
                 <>

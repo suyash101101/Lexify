@@ -12,14 +12,19 @@ import {
   User
 } from 'lucide-react';
 
-const SidebarLink = ({ to, icon: Icon, children }) => {
+const SidebarLink = ({ to, icon: Icon, children, onNavigate }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = location.pathname === to;
 
+  const handleClick = () => {
+    navigate(to);
+    if (onNavigate) onNavigate();
+  };
+
   return (
     <button
-      onClick={() => navigate(to)}
+      onClick={handleClick}
       className={`
         w-full flex items-center gap-3 px-4 py-3 rounded-xl
         transition-all duration-200
@@ -39,12 +44,20 @@ SidebarLink.propTypes = {
   to: PropTypes.string.isRequired,
   icon: PropTypes.elementType.isRequired,
   children: PropTypes.node.isRequired,
+  onNavigate: PropTypes.func,
 };
 
 const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { user, logout } = useAuth0();
   const navigate = useNavigate();
+
+  const handleMobileNavigate = () => {
+    // Only close sidebar on mobile
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-accent-gray">
@@ -72,19 +85,19 @@ const DashboardLayout = ({ children }) => {
 
           {/* Navigation - Scrollable */}
           <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-            <SidebarLink to="/cases" icon={LayoutGrid}>
+            <SidebarLink to="/cases" icon={LayoutGrid} onNavigate={handleMobileNavigate}>
               <span className={`transition-opacity duration-200
                             ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
                 Dashboard
               </span>
             </SidebarLink>
-            <SidebarLink to="/consultancy" icon={MessageSquare}>
+            <SidebarLink to="/consultancy" icon={MessageSquare} onNavigate={handleMobileNavigate}>
               <span className={`transition-opacity duration-200
                             ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
                 Consultancy
               </span>
             </SidebarLink>
-            <SidebarLink to="/contactus" icon={Phone}>
+            <SidebarLink to="/contactus" icon={Phone} onNavigate={handleMobileNavigate}>
               <span className={`transition-opacity duration-200
                             ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
                 Contact Us
