@@ -1,120 +1,98 @@
 import React from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
-import { Auth0Provider } from '@auth0/auth0-react';
-import { withAuthenticationRequired } from '@auth0/auth0-react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
 import Navigation from './components/Navigation';
 import Landing from './components/Landing';
-import Login from './components/Login';
-import Profile from './components/Profile';
-import ContactUs from './components/ContactUs';
-import Hello from './components/Hello';
 import Cases from './components/Cases';
-import { useAuth0 } from '@auth0/auth0-react';
 import CreateCase from './components/CreateCase';
-import HAIChatInterface from './components/HAIChatInterface';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { theme } from './styles/theme';
-import Background from './components/Background';
+import Profile from './components/Profile';
+import DashboardLayout from './components/layouts/DashboardLayout';
+import ContactUs from './components/ContactUs';
 import Consulting from './components/Consulting';
+import HAIChatInterface from './components/HAIChatInterface';
+import Login from './components/Login';
+import { Loading } from './components/shared/Loading';
+import Pricing from './pages/Pricing';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Blog from './pages/Blog';
+import About from './pages/About';
+import Footer from './components/shared/Footer';
 
-// Protected Route wrapper component
-const ProtectedRoute = ({ component, ...args }) => {
-  const Component = withAuthenticationRequired(component, {
-    onRedirecting: () => <div>Loading...</div>,
-    ...args,
-  });
-  return <Component />;
+
+// Wrapper for authenticated routes with DashboardLayout
+const PrivateRoute = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth0();
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  return <DashboardLayout>{children}</DashboardLayout>;
 };
 
-// Navigation wrapper that only shows when authenticated
-const NavigationWrapper = ({ children }) => {
+const App = () => {
   const { isAuthenticated } = useAuth0();
+
   return (
     <>
-      {isAuthenticated && <Navigation />}
-      {children}
+      {/* Only show Navigation on public routes */}
+      {!isAuthenticated && <Navigation />}
+      
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/about" element={<About />} />
+
+
+        {/* Protected Routes - All wrapped with DashboardLayout */}
+        <Route path="/cases" element={
+          <PrivateRoute>
+            <Cases />
+          </PrivateRoute>
+        } />
+        <Route path="/cases/create" element={
+          <PrivateRoute>
+            <CreateCase />
+          </PrivateRoute>
+        } />
+        <Route path="/contactus" element={
+          <PrivateRoute>
+            <ContactUs />
+          </PrivateRoute>
+        } />
+        <Route path="/consultancy" element={
+          <PrivateRoute>
+            <Consulting />
+          </PrivateRoute>
+        } />
+
+        <Route path="/profile" element={
+          <PrivateRoute>
+            <Profile />
+          </PrivateRoute>
+        } />
+        <Route path="/chat/:case_id" element={
+          <PrivateRoute>
+            <HAIChatInterface />
+          </PrivateRoute>
+        } />
+      </Routes>
+
+      {/* Only show Footer on public routes */}
+      {!isAuthenticated && <Footer />}
+
     </>
   );
 };
-
-// Auth0 Provider wrapper
-const Auth0ProviderWithNavigate = ({ children }) => {
-  const navigate = useNavigate();
-
-  const onRedirectCallback = (appState) => {
-    navigate(appState?.returnTo || window.location.pathname);
-  };
-
-  return (
-    <Auth0Provider
-      domain={import.meta.env.VITE_AUTH0_DOMAIN}
-      clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
-      authorizationParams={{
-        redirect_uri: window.location.origin,
-      }}
-      onRedirectCallback={onRedirectCallback}
-    >
-      {children}
-    </Auth0Provider>
-  );
-};
-
-// Main App component
-function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <div className="min-h-screen relative overflow-hidden">
-        <Background />
-        
-        {/* Main content */}
-        <div className="relative z-10">
-          <Auth0ProviderWithNavigate>
-            <NavigationWrapper>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Landing />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/consultancy" element ={<Consulting/>} />
-                
-                {/* Protected routes */}
-                <Route
-                  path="/profile"
-                  element={<ProtectedRoute component={Profile} />}
-                />
-                <Route
-                  path="/contactus"
-                  element={<ProtectedRoute component={ContactUs} />}
-                />
-                <Route
-                  path="/hello"
-                  element={<ProtectedRoute component={Hello} />}
-                />
-                <Route
-                  path="/cases"
-                  element={<ProtectedRoute component={Cases} />}
-                />
-                <Route
-                  path="/cases/create"
-                  element={<ProtectedRoute component={CreateCase} />}
-                />
-                <Route
-                  path="/chat/:case_id"
-                  element={<ProtectedRoute component={HAIChatInterface} />}
-                />
-                <Route
-                  path="/create-case"
-                  element={<ProtectedRoute component={CreateCase} />}
-                />
-
-              </Routes>
-            </NavigationWrapper>
-          </Auth0ProviderWithNavigate>
-        </div>
-      </div>
-    </ThemeProvider>
-  );
-}
 
 export default App;

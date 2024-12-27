@@ -1,19 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Box,
-  TextField,
-  Button,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  CircularProgress
-} from '@mui/material';
 import { motion } from 'framer-motion';
 import { Upload, X, Plus } from 'lucide-react';
 import CryptoJS from 'crypto-js';
@@ -113,9 +100,8 @@ const CreateCase = () => {
       if (!response.ok) {
         throw new Error('Failed to create case');
       }
-
-      const data = await response.json();
-      navigate(`/cases/${data.case_id}`);
+      
+      navigate(`/cases`);
     } catch (error) {
       console.error('Error creating case:', error);
     } finally {
@@ -130,14 +116,14 @@ const CreateCase = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-8"
       >
-        <div className="relative bg-white/80 backdrop-blur-sm p-8 rounded-2xl border border-sky-100 shadow-xl">
+        <div className="relative bg-white p-8 rounded-[16px] border border-[rgba(0,0,0,0.05)] shadow-lg">
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Case</h1>
-            <p className="text-gray-500 mb-8">Fill in the details to create a new legal case</p>
+            <h1 className="text-3xl font-bold text-[#222] font-poppins mb-2">Create New Case</h1>
+            <p className="text-[#333] mb-8">Fill in the details to create a new legal case</p>
           </motion.div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -147,15 +133,15 @@ const CreateCase = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <label className="block text-sm font-medium text-sky-500">Case Title</label>
+                <label className="block text-sm font-medium text-[#333] font-poppins">Case Title</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-sky-200 
-                    focus:ring-2 focus:ring-sky-300 focus:border-sky-300 
-                    bg-white/50 text-sky-600 placeholder-sky-300"
+                  className="w-full h-[48px] px-[16px] rounded-[8px] border border-[rgba(0,0,0,0.1)] 
+                    focus:border-black focus:shadow-sm
+                    bg-white text-[#333] placeholder-[#666] font-inter"
                   placeholder="Enter case title"
                 />
               </motion.div>
@@ -165,13 +151,15 @@ const CreateCase = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <label className="block text-sm font-medium text-gray-700 mb-1">Case Description</label>
+                <label className="block text-sm font-medium text-[#333] font-poppins mb-1">Case Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
                   rows={4}
-                  className="w-full px-4 py-3 rounded-xl border border-sky-100 focus:ring-2 focus:ring-sky-300 focus:border-sky-300 bg-white/80 text-sky-600 placeholder-sky-300 transition-all"
+                  className="w-full px-[16px] py-[16px] rounded-[8px] border border-[rgba(0,0,0,0.1)] 
+                    focus:border-black focus:shadow-sm
+                    bg-white text-[#333] placeholder-[#666] font-inter transition-all"
                   placeholder="Describe your case"
                 />
               </motion.div>
@@ -182,11 +170,11 @@ const CreateCase = () => {
                 transition={{ delay: 0.5 }}
                 className="space-y-4"
               >
-                <label className="block text-sm font-medium text-gray-700">Your Evidence Files</label>
+                <label className="block text-sm font-medium text-[#333] font-poppins">Your Evidence Files</label>
                 <div className="flex items-center justify-center w-full">
-                  <label className="w-full flex flex-col items-center px-4 py-6 bg-sky-50/50 text-sky-400 border-2 border-sky-100 border-dashed cursor-pointer hover:bg-sky-100 transition-all">
+                  <label className="w-full flex flex-col items-center px-[24px] py-[24px] bg-[#F5F5F5] text-[#333] border-2 border-[rgba(0,0,0,0.1)] border-dashed cursor-pointer hover:bg-[#EBEBEB] transition-all rounded-[8px]">
                     <Upload className="w-8 h-8 mb-2" />
-                    <span className="text-sm">Drop files here or click to upload</span>
+                    <span className="text-sm font-inter">Drop files here or click to upload</span>
                     <input
                       type="file"
                       hidden
@@ -205,22 +193,22 @@ const CreateCase = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="flex items-start space-x-4 bg-gray-50 p-4 rounded-xl"
+                    className="flex items-start space-x-4 bg-[#F5F5F5] p-[16px] rounded-[8px]"
                   >
                     <div className="flex-1 space-y-2">
-                      <p className="text-sm font-medium text-gray-700">{fileObj.original_name}</p>
+                      <p className="text-sm font-medium text-[#333] font-poppins">{fileObj.original_name}</p>
                       <input
                         type="text"
                         value={fileObj.description}
                         onChange={(e) => handleDescriptionChange(index, e.target.value)}
                         placeholder="Add file description"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        className="w-full h-[48px] px-[16px] text-sm rounded-[8px] border border-[rgba(0,0,0,0.1)] focus:border-black focus:shadow-sm font-inter"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveFile(index)}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-2 text-[#666] hover:text-[#DC2626] transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -236,11 +224,11 @@ const CreateCase = () => {
                 className="space-y-4"
               >
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700">AI Evidence Files</label>
+                <label className="block text-sm font-medium text-[#333] font-poppins">AI Evidence Files</label>
                 <div className="flex items-center justify-center w-full">
-                  <label className="w-full flex flex-col items-center px-4 py-6 bg-purple-50/50 text-purple-400 border-2 border-purple-100 border-dashed cursor-pointer hover:bg-purple-100 transition-all">
+                  <label className="w-full flex flex-col items-center px-[24px] py-[24px] bg-[#F5F5F5] text-[#333] border-2 border-[rgba(0,0,0,0.1)] border-dashed cursor-pointer hover:bg-[#EBEBEB] transition-all rounded-[8px]">
                     <Upload className="w-8 h-8 mb-2" />
-                    <span className="text-sm">Drop AI files here or click to upload</span>
+                    <span className="text-sm font-inter">Drop AI files here or click to upload</span>
                     <input
                       type="file"
                       hidden
@@ -260,22 +248,22 @@ const CreateCase = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="flex items-start space-x-4 bg-purple-50 p-4 rounded-xl"
+                    className="flex items-start space-x-4 bg-[#F5F5F5] p-[16px] rounded-[8px]"
                   >
                     <div className="flex-1 space-y-2">
-                      <p className="text-sm font-medium text-purple-700">{fileObj.original_name}</p>
+                      <p className="text-sm font-medium text-[#333] font-poppins">{fileObj.original_name}</p>
                       <input
                         type="text"
                         value={fileObj.description}
                         onChange={(e) => handleAIDescriptionChange(index, e.target.value)}
                         placeholder="Add AI file description"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full h-[48px] px-[16px] text-sm rounded-[8px] border border-[rgba(0,0,0,0.1)] focus:border-black focus:shadow-sm font-inter"
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveAIFile(index)}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-2 text-[#666] hover:text-[#DC2626] transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -287,11 +275,11 @@ const CreateCase = () => {
             <motion.button
               type="submit"
               disabled={loading || files.length === 0}
-              className={`w-full py-3 px-6 rounded-xl text-white font-medium flex items-center justify-center space-x-2 
+              className={`w-full h-[48px] px-[16px] rounded-[8px] text-white font-medium flex items-center justify-center space-x-2 font-poppins
                 ${loading || files.length === 0
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700'
-                } transition-all`}
+                  ? 'bg-[rgba(0,0,0,0.4)] cursor-not-allowed'
+                  : 'bg-black hover:opacity-95'
+                } transition-all duration-200`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -312,4 +300,3 @@ const CreateCase = () => {
 };
 
 export default CreateCase;
-

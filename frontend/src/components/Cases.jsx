@@ -1,23 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { motion } from 'framer-motion';
-import { Plus, MessageCircle, Briefcase } from 'lucide-react';
-import CryptoJS from 'crypto-js';
+import { 
+  Plus, 
+  Scale, 
+  Clock, 
+  Search,
+  ArrowRight
+} from 'lucide-react';
+import PropTypes from 'prop-types';
+import { Button } from './shared/Button';
+import { Card } from './shared/Card';
+import { Loading } from './shared/Loading';
+
+const CaseCard = ({ legalCase }) => {
+  const navigate = useNavigate();
+  
+  const statusColors = {
+    'Open': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    'Closed': 'bg-gray-50 text-gray-700 border border-gray-200',
+    'In Progress': 'bg-amber-50 text-amber-700 border border-amber-200'
+  };
+  
+  return (
+    <Card 
+      className="relative overflow-hidden p-5 border border-black/5"
+      hover={false}
+    >
+      {/* Status Badge */}
+      <div className={`
+        absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-medium
+        ${statusColors[legalCase.case_status]}
+      `}>
+        {legalCase.case_status}
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 bg-black/5 rounded-lg">
+            <Scale className="w-5 h-5 text-black" />
+          </div>
+          <div>
+            <h3 className="text-lg font-display font-semibold text-black mb-0.5">
+              {legalCase.title}
+            </h3>
+            <p className="text-gray-500 text-sm">
+              Case #{legalCase.case_id}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-gray-500 text-sm">
+          <Clock className="w-4 h-4" />
+          <span>Created {new Date(legalCase.created_at).toLocaleDateString()}</span>
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={() => navigate(`/chat/${legalCase.case_id}`)}
+          className="w-full border-black/10 hover:bg-black hover:text-white transition-colors group"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <span className="font-medium">Enter Courtroom</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Button>
+      </div>
+    </Card>
+  );
+};
+
+CaseCard.propTypes = {
+  legalCase: PropTypes.shape({
+    case_id: PropTypes.string.isRequired,
+    title: PropTypes.string.isRequired,
+    case_status: PropTypes.string.isRequired,
+    created_at: PropTypes.string.isRequired
+  }).isRequired
+};
 
 const Cases = () => {
   const navigate = useNavigate();
   const { user } = useAuth0();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const decryptData = (encryptedData) => {
-    const bytes = CryptoJS.AES.decrypt(
-      encryptedData,
-      import.meta.env.VITE_ENCRYPTION_KEY
-    );
-    return bytes.toString(CryptoJS.enc.Utf8);
-  };
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -40,110 +107,83 @@ const Cases = () => {
     fetchCases();
   }, [user]);
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-8"
-      >
-        {/* Header Section */}
-        <div className="flex justify-between items-center">
-          <motion.div 
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center space-x-4"
-          >
-            <div className="p-3 bg-sky-100 rounded-xl">
-              <Briefcase className="w-8 h-8 text-sky-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-sky-700">Your Cases</h1>
-              <p className="text-sky-400">{cases.length} active cases</p>
-            </div>
-          </motion.div>
+  if (loading) {
+    return <Loading />;
+  }
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/cases/create')}
-            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl hover:from-sky-600 hover:to-blue-700 transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Create New Case</span>
-          </motion.button>
+  const filteredCases = cases.filter(c => 
+    c.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-display font-bold text-black">Your Cases</h1>
+              <p className="text-gray-500 mt-1">Manage and track your legal cases</p>
+            </div>
+            <Button
+              onClick={() => navigate('/cases/create')}
+              className="sm:w-auto w-full"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Case</span>
+            </Button>
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search cases by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-11 pl-11 pr-4 bg-white border border-black/10 rounded-xl
+                       placeholder:text-gray-400 text-black focus:outline-none focus:border-black/20 focus:ring-0"
+            />
+          </div>
         </div>
 
         {/* Cases Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cases.map((legalCase, index) => (
-            <motion.div
-              key={legalCase.case_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -5 }}
-              className="relative group"
-            >
-              {/* Animated gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-sky-100 to-blue-100 rounded-xl transform transition-transform group-hover:scale-105 opacity-30 blur" />
-              
-              <div className="relative bg-white/80 backdrop-blur-sm p-6 rounded-xl border border-sky-100 shadow-lg transition-all group-hover:shadow-xl">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-xl font-semibold text-gray-800">
-                      {legalCase.title}
-                    </h3>
-                    <motion.div
-                      whileHover={{ rotate: 15 }}
-                      className="p-2 bg-sky-50 rounded-lg"
-                    >
-                      <Briefcase className="w-5 h-5 text-sky-500" />
-                    </motion.div>
-                  </div>
-                  
-                  <p className="text-sm text-sky-400">
-                    Case ID: {legalCase.case_id}
-                  </p>
-
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate(`/chat/${legalCase.case_id}`)}
-                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-white hover:bg-sky-50 text-sky-400 rounded-lg border border-sky-100 transition-all"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    <span>Open Chat</span>
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Empty state */}
-        {cases.length === 0 && !loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
-          >
-            <div className="text-sky-300 mb-4">
-              <Briefcase className="w-16 h-16 mx-auto" />
+        {filteredCases.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCases.map((legalCase) => (
+              <CaseCard 
+                key={legalCase.case_id} 
+                legalCase={legalCase}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-black/5 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Scale className="w-8 h-8 text-black/40" />
             </div>
-            <h3 className="text-xl font-medium text-sky-500 mb-2">
-              No cases yet
+            <h3 className="text-xl font-display font-semibold text-black mb-2">
+              No cases found
             </h3>
-            <p className="text-gray-500">
-              Create your first case to get started
+            <p className="text-gray-500 mb-6">
+              {searchTerm 
+                ? "No cases match your search criteria" 
+                : "Get started by creating your first case"}
             </p>
-          </motion.div>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/cases/create')}
+              className="border-black/10"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Case</span>
+            </Button>
+          </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 };
 
 export default Cases;
-
