@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings(BaseSettings):
-    redis_host: str = "localhost"
-    redis_port: int = 6379
+    redis_url: str
+    redis_host: str
+    redis_port: int
     llm_model_name: str
     galadriel_api_key: str
     galadriel_base_url: str

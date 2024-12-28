@@ -1,13 +1,12 @@
 from redis.asyncio import Redis
 import json
 from typing import List
-from ..config import settings
+import os
 
 class AsyncRedisClient:
     def __init__(self):
-        self.redis = Redis(
-            host=settings.redis_host,
-            port=settings.redis_port,
+        self.redis = Redis.from_url(
+            url=os.getenv("REDIS_URL"),
             decode_responses=True
         )
 

@@ -1,13 +1,13 @@
 import json
+import os
 from redis import Redis
 from ..config import settings
 from typing import List
 
 class RedisClient:
     def __init__(self):
-        self.redis = Redis(
-            host=settings.redis_host,
-            port=settings.redis_port,
+        self.redis = Redis.from_url(
+            url=os.getenv("REDIS_URL"),
             decode_responses=True
         )
 
