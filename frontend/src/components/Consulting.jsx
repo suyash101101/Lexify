@@ -29,7 +29,7 @@ const Consulting = () => {
     setError(null);
     
     try {
-      const result = await axios.post('http://localhost:8000/consultancy/ask', {
+      const result = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
         prompt: input
       }, {
         headers: {
