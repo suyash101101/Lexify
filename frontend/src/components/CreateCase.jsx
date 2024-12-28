@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, Plus } from 'lucide-react';
+import { Upload, X, Plus, Trash } from 'lucide-react';
 import CryptoJS from 'crypto-js';
+import * as pdfjsLib from 'pdfjs-dist';
+import 'pdfjs-dist/build/pdf.worker.entry';
 
 const CreateCase = () => {
   const { user } = useAuth0();
@@ -13,6 +15,9 @@ const CreateCase = () => {
   const [files, setFiles] = useState([]);
   const [lawyer2Files, setLawyer2Files] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [descriptionFile, setDescriptionFile] = useState(null);
+  const [originalDescription, setOriginalDescription] = useState('');
+  const fileInputRef = useRef(null);
 
   const encryptData = (data) => {
     return CryptoJS.AES.encrypt(
@@ -21,42 +26,110 @@ const CreateCase = () => {
     ).toString();
   };
 
-  const handleFileUpload = (event) => {
-    const newFiles = Array.from(event.target.files).map(file => ({
-      file,
-      description: '',
-      original_name: file.name
+  const handleFileUpload = async (event) => {
+    const newFiles = await Promise.all(Array.from(event.target.files).map(async (file) => {
+      let fileContent = '';
+      if (file.type === 'application/pdf' || file.type === 'text/plain') {
+        fileContent = await readFileContent(file);
+      }
+      return {
+        file,
+        fileContent,
+        userDescription: '',
+        original_name: file.name
+      };
     }));
     setFiles([...files, ...newFiles]);
   };
 
-  const handleDescriptionChange = (index, description) => {
+  const handleAIFileUpload = async (event) => {
+    const newFiles = await Promise.all(Array.from(event.target.files).map(async (file) => {
+      let fileContent = '';
+      if (file.type === 'application/pdf' || file.type === 'text/plain') {
+        fileContent = await readFileContent(file);
+      }
+      return {
+        file,
+        fileContent,
+        userDescription: '',
+        original_name: file.name
+      };
+    }));
+    setLawyer2Files([...lawyer2Files, ...newFiles]);
+  };
+
+  const handleDescriptionChange = (index, userDescription) => {
     const updatedFiles = [...files];
-    updatedFiles[index].description = description;
+    updatedFiles[index].userDescription = userDescription;
     setFiles(updatedFiles);
+  };
+
+  const handleAIDescriptionChange = (index, userDescription) => {
+    const updatedFiles = [...lawyer2Files];
+    updatedFiles[index].userDescription = userDescription;
+    setLawyer2Files(updatedFiles);
   };
 
   const handleRemoveFile = (index) => {
     setFiles(files.filter((_, i) => i !== index));
   };
 
-  const handleAIFileUpload = (event) => {
-    const newFiles = Array.from(event.target.files).map(file => ({
-      file,
-      description: '',
-      original_name: file.name
-    }));
-    setLawyer2Files([...lawyer2Files, ...newFiles]);
-  };
-
-  const handleAIDescriptionChange = (index, description) => {
-    const updatedFiles = [...lawyer2Files];
-    updatedFiles[index].description = description;
-    setLawyer2Files(updatedFiles);
-  };
-
   const handleRemoveAIFile = (index) => {
     setLawyer2Files(lawyer2Files.filter((_, i) => i !== index));
+  };
+
+  const handleDescriptionFileChange = async (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile && (selectedFile.type === 'application/pdf' || selectedFile.type === 'text/plain')) {
+      setDescriptionFile(selectedFile);
+      const fileContent = await readFileContent(selectedFile);
+      setOriginalDescription(description);
+      setDescription(description + '\n' + fileContent);
+    } else {
+      alert('Please upload a valid PDF or TXT file.');
+      e.target.value = null;
+    }
+  };
+
+  const readFileContent = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (file.type === 'application/pdf') {
+          try {
+            const pdf = await pdfjsLib.getDocument({ data: event.target.result }).promise;
+            let text = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              textContent.items.forEach(item => {
+                text += item.str + ' ';
+              });
+            }
+            resolve(text);
+          } catch (error) {
+            reject(error);
+          }
+        } else {
+          resolve(event.target.result);
+        }
+      };
+      reader.onerror = (error) => reject(error);
+      if (file.type === 'application/pdf') {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    });
+  };
+
+  const handleRemoveDescriptionFile = () => {
+    setDescriptionFile(null);
+    setDescription(originalDescription);
+    setOriginalDescription('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = null;
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -73,7 +146,7 @@ const CreateCase = () => {
           
           return {
             ipfs_hash: ipfsHash,
-            description: fileObj.description,
+            description: fileObj.fileContent + '\n' + fileObj.userDescription,
             original_name: fileObj.original_name
           };
         })),
@@ -82,13 +155,14 @@ const CreateCase = () => {
           
           return {
             ipfs_hash: ipfsHash,
-            description: fileObj.description,
+            description: fileObj.fileContent + '\n' + fileObj.userDescription,
             original_name: fileObj.original_name
           };
         })),
         case_status: "Open"
       };
 
+      console.log(formData);
       const response = await fetch(`${import.meta.env.VITE_API_URL}/cases/create`, {
         method: 'POST',
         headers: {
@@ -116,7 +190,7 @@ const CreateCase = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-8"
       >
-        <div className="relative bg-white p-8 rounded-[16px] border border-[rgba(0,0,0,0.05)] shadow-lg">
+        <div className="relative bg-white p-8 rounded-[16px] border border-[rgba(0,0,0,0.05)] shadow-lg" style={{ top: '-65px' }}>
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -162,6 +236,25 @@ const CreateCase = () => {
                     bg-white text-[#333] placeholder-[#666] font-inter transition-all"
                   placeholder="Describe your case"
                 />
+                <label className="block text-sm font-medium text-[#333] font-poppins mb-1 mt-4">Upload File for Description (PDF or TXT)</label>
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    accept=".pdf,.txt"
+                    onChange={handleDescriptionFileChange}
+                    ref={fileInputRef}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {descriptionFile && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveDescriptionFile}
+                      className="ml-2 p-2 text-[#666] hover:text-[#DC2626] transition-colors"
+                    >
+                      <Trash className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
               </motion.div>
 
               <motion.div
@@ -199,7 +292,7 @@ const CreateCase = () => {
                       <p className="text-sm font-medium text-[#333] font-poppins">{fileObj.original_name}</p>
                       <input
                         type="text"
-                        value={fileObj.description}
+                        value={fileObj.userDescription}
                         onChange={(e) => handleDescriptionChange(index, e.target.value)}
                         placeholder="Add file description"
                         className="w-full h-[48px] px-[16px] text-sm rounded-[8px] border border-[rgba(0,0,0,0.1)] focus:border-black focus:shadow-sm font-inter"
@@ -254,7 +347,7 @@ const CreateCase = () => {
                       <p className="text-sm font-medium text-[#333] font-poppins">{fileObj.original_name}</p>
                       <input
                         type="text"
-                        value={fileObj.description}
+                        value={fileObj.userDescription}
                         onChange={(e) => handleAIDescriptionChange(index, e.target.value)}
                         placeholder="Add AI file description"
                         className="w-full h-[48px] px-[16px] text-sm rounded-[8px] border border-[rgba(0,0,0,0.1)] focus:border-black focus:shadow-sm font-inter"

@@ -103,8 +103,7 @@ async def list_cases():
     """Lists all cases"""
     return redis_client.list_cases()
 
-@router.post("/create") # here in the case of the create case schema remove the submit evidence thing and in the case of the create case along with the funcionality return also the response or particularly what is the data for the same side by side ke basically verify thayu chhe ke nahi and store karti vakhte store in teh case_reports/caseid folder and side by side dar ek aa folder na andar aa naam toh pdf toh hase j and next side by side ena andar content verification folder pan banavai devanu and next time jyare vector database na andar ni vastu jyare thaay tyare e case ma je vector database chhe ena maate case id pan andar aavu joiye so that next time only for the paritcular context of the given case e vastu banine rehse side by side 
-# or else ek biju evu karvanu rehse ke for the case of the conversations ene still redis na upar muki rakhvanu and along with turn repsonse also return the comment passed by the judge to the frontend side by side to be shown to the user
+@router.post("/create")
 async def create_case(case_data: CaseCreateSchema):
     """Creates a new case with initial evidence"""
     try:

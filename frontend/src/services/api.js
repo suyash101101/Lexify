@@ -37,5 +37,16 @@ export const api = {
       console.error('Error fetching conversation history:', error);
       throw error;
     }
+  },
+  
+  getCaseDetails : async(case_id)=>{
+    try{
+      const response = await axios.get(`${API_BASE_URL}/api/hai/get-case-details/${case_id}`);
+      console.log(response.data)
+      return response.data;
+    }catch(error){
+      console.error('Error fetching case details:', error);
+      throw error;
+    }
   }
 };

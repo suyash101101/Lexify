@@ -18,6 +18,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from io import BytesIO
 import re
+from ..db.redis_db import redis_client
 
 load_dotenv()
 
@@ -45,6 +46,7 @@ class TurnResponse(BaseModel):
     ai_score: float
     ipfs_hash: Optional[str] = None
     judge_comment: Optional[str] = None
+    last_response: Optional[LawyerContext] = None
 
 class ProcessInputRequest(BaseModel):
     turn_type: str
@@ -307,7 +309,7 @@ class Judge:
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
                 if score_difference >= 1:
-                    return self.end_case(request.case_id)
+                    return self.end_case(request.case_id,human_response)
                 
                 self.current_turn = "ai"
                 return TurnResponse(
@@ -345,7 +347,8 @@ class Judge:
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
                 if score_difference >= 1:
-                    return self.end_case(request.case_id)
+                    return self.end_case(request.case_id,ai_response)
+
                 
                 self.current_turn = "human"
                 return TurnResponse(
@@ -364,7 +367,7 @@ class Judge:
                 detail=f"Error processing input: {str(e)}"
             )
 
-    def end_case(self, case_id: str):
+    def end_case(self, case_id: str,last_response: LawyerContext)-> TurnResponse:
         """Helper method to handle case ending"""
         winner = "Human Lawyer" if self.human_score > self.ai_score else "AI Lawyer"
         score_difference = abs(self.human_score - self.ai_score)
@@ -372,7 +375,23 @@ class Judge:
         closing_statement = self.generate_closing_statement(winner, score_difference)
         self.conversations.append(closing_statement)
 
-       
+        case = redis_client.get_case(case_id)
+        case["case_status"] = "Closed"
+        conversationdict = {
+            "conversations": [conversation.dict() for conversation in self.conversations]
+        }
+        case_winner = {
+            "winner" : winner
+        }
+        case_scores = {
+        "human_score": str(self.human_score),
+        "ai_score": str(self.ai_score),
+        "score_difference": str(score_difference)
+    }
+        case.update(conversationdict)
+        case.update(case_winner)
+        case.update(case_scores)
+        redis_client.update_case(case_id, case)
 
         return TurnResponse(
             next_turn="none",
@@ -382,6 +401,7 @@ class Judge:
             current_response=closing_statement,
             human_score=self.human_score,
             ai_score=self.ai_score,
+            last_response = last_response
         )
       
 
@@ -428,7 +448,7 @@ class Judge:
             response = run.content
             
             return LawyerContext(
-                input=response.choices[0].message.content,
+                input=response,
                 context="The court has reached a decision.",
                 speaker="judge",
                 score=0.0
@@ -441,7 +461,3 @@ class Judge:
                 speaker="judge",
                 score=0.0
             )
-
-
-
-#later will have to add a function which will basically take the covnersation and take the lists and then put it onto case pdf using the report pdf library function

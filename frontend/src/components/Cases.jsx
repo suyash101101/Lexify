@@ -18,7 +18,8 @@ const CaseCard = ({ legalCase }) => {
   
   const statusColors = {
     'Open': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    'Closed': 'bg-gray-50 text-gray-700 border border-gray-200',
+    'Closed': 'bg-red-50 text-gray-700 border border-red-200',
+    'closed' : 'bg-red-50 text-gray-700 border border-red-200',
     'In Progress': 'bg-amber-50 text-amber-700 border border-amber-200'
   };
   
@@ -32,7 +33,7 @@ const CaseCard = ({ legalCase }) => {
         absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-medium
         ${statusColors[legalCase.case_status]}
       `}>
-        {legalCase.case_status}
+        {legalCase.case_status === "closed" ? "Closed" : legalCase.case_status}
       </div>
 
       <div className="space-y-4">
@@ -52,16 +53,18 @@ const CaseCard = ({ legalCase }) => {
 
         <div className="flex items-center gap-2 text-gray-500 text-sm">
           <Clock className="w-4 h-4" />
-          <span>Created {new Date(legalCase.created_at).toLocaleDateString()}</span>
+          <span>Created {legalCase.created_at}</span>
         </div>
 
         <Button
           variant="outline"
-          onClick={() => navigate(`/chat/${legalCase.case_id}`)}
+          onClick={() => navigate(legalCase.case_status === 'Open' ? `/chat/${legalCase.case_id}` : `/chat/${legalCase.case_id}/review`)}
           className="w-full border-black/10 hover:bg-black hover:text-white transition-colors group"
         >
           <div className="flex items-center justify-center gap-2">
-            <span className="font-medium">Enter Courtroom</span>
+          <span className="font-medium">
+          {legalCase.case_status === 'Open' ? 'Enter Courtroom' : 'Review Conversation'}
+          </span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </Button>
