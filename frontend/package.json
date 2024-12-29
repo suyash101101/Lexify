@@ -11,14 +11,7 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.2.4",
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
     "@heroicons/react": "^2.2.0",
-    "@mui/icons-material": "^6.2.1",
-    "@mui/material": "^6.2.1",
-    "@react-three/drei": "^9.80.2",
-    "@react-three/fiber": "^8.13.6",
-    "@types/three": "^0.171.0",
     "axios": "^1.7.9",
     "crypto-js": "^4.2.0",
     "framer-motion": "^10.15.1",
@@ -27,7 +20,7 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",
     "react-router-dom": "^7.0.2",
-    "three": "^0.155.0"
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
