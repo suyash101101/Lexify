@@ -10,7 +10,7 @@ def ReferenceAnalysis(filepath, references_dir):
     ReferenceAnalyzer = Agent(
         name="ReferenceAnalyzer",
         model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
-        tools=[FileTools()],
+        debug_mode = True
     )
 
     # Check if the output directory exists, if not, create it
@@ -37,7 +37,7 @@ def ReferenceAnalysis(filepath, references_dir):
         # Define the analysis prompt
         prompt = (
             f"Please analyze the following case briefing content:\n\n{case_briefing_content}\n\n"
-            f"Also review the following evidence documents:\n\n{reference_files}\n\n"
+            f"Also review the following evidence documents:\n\n{evidence_contents}\n\n"
             "Check if the content of each evidence document supports or contradicts the case briefing. "
             "Determine if the content of these documents is sufficient to cross-verify all claims made in the case briefing. "
             "Provide a comprehensive report."

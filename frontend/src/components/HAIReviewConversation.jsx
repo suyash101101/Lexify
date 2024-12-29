@@ -21,7 +21,7 @@ const HAIReviewConversation = () => {
     const fetchCaseData = async () => {
       try {
         const response = await api.getCaseDetails(case_id);
-        console.log("the response received in the frontend", response);
+        // console.log("the response received in the frontend", response);
         setGameState(response);
 
         // Filter and format messages
@@ -39,9 +39,6 @@ const HAIReviewConversation = () => {
     fetchCaseData();
   }, [case_id]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   useEffect(() => {
     if (gameState?.case_status === 'closed') {
@@ -144,11 +141,11 @@ const HAIReviewConversation = () => {
               <div className="flex items-center gap-4">
                 <div>
                   <span className="text-gray-500 mr-2">You:</span>
-                  <span className="font-medium">{gameState?.human_score || '0.00'}</span>
+                  <span className="font-medium">{parseFloat(gameState?.human_score).toFixed(2) || '0.00'}</span>
                 </div>
                 <div>
                   <span className="text-gray-500 mr-2">AI:</span>
-                  <span className="font-medium">{gameState?.ai_score || '0.00'}</span>
+                  <span className="font-medium">{parseFloat(gameState?.ai_score).toFixed(2) || '0.00'}</span>
                 </div>
               </div>
               <div className="px-2.5 py-1 bg-black/5 rounded-full text-xs font-medium">
@@ -182,7 +179,7 @@ const HAIReviewConversation = () => {
                 </span>
               </motion.div>
             )}
-            <div ref={messagesEndRef} />
+            <div ref={endRef} />
           </div>
         </div>
       </div>
@@ -198,7 +195,7 @@ const HAIReviewConversation = () => {
           <h3 className="text-2xl font-bold mb-2 text-gray-800">Case Closed</h3>
           <p className="text-lg mb-2 text-gray-700">Winner: {gameState.winner || 'Unknown'}</p>
           <p className="text-sm text-gray-600 mb-4">
-            Final Score Difference: {gameState.score_difference}
+            Final Score Difference: {parseFloat(gameState.score_difference).toFixed(2)}
           </p>
         </motion.div>
       )}

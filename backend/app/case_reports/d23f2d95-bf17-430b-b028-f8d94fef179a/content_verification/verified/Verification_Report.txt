@@ -1,0 +1,90 @@
+Analysis_Report.txt: Okay, let's analyze this.
+
+**Analysis of the Provided Text:**
+
+The analysis provided correctly identifies that the document is not a case brief. It explicitly states that:
+
+*   The document contains lorem ipsum text, which is meaningless.
+*   The phrases are disconnected and do not form a narrative.
+*   There is no case information: parties, issues, facts, or legal framework.
+*   There are no scenarios to analyze for connectivity.
+
+**AI-Generated Text Check:**
+The text is a pure analysis, it does not appear that any of the text is AI generated. Therefore it is likely to be less than 20 percent.
+
+**Recommendation:**
+
+**Verify the Case Brief.**
+
+**Reasoning:**
+
+The provided analysis is accurate and thorough in its assessment of the document's lack of case information. It correctly concludes that the document is not a case briefing. Since the document is not a case brief, there is nothing to verify based on content.
+AITest.txt: **Recommendation: Verify**
+
+**Reasoning:**
+
+The provided data indicates that:
+
+*   **AI-generated content is 0%.**
+*   **Human-written content is 100%**
+*   **The AI percentage is 0% which is below 20%**
+
+Since the threshold for verification is that the AI generated text must be less than 20% and the data indicates 0% AI content, this case briefing should be verified. It appears to be entirely human-written.
+References_Analysis_Report.txt: Okay, here's the analysis and recommendation based on the provided content:
+
+**Analysis of AI-Generated Text Percentage:**
+
+First, let's assess the AI-generated text percentage. To do this, I'll break down the provided text into sections and estimate what could reasonably be considered human-written vs. AI-generated. 
+
+*   **Analysis of Case Briefing Content:** This section is human written.
+*   **Analysis of Evidence Documents:** This section is human written.
+*   **Cross-Verification and Sufficiency Analysis:** This section is human written.
+*   **Comprehensive Report:** This section is human written.
+*   **Conclusion:** This section is human written.
+*   **All Text Analysis:** This section is human written.
+
+The AI did not generate the provided text. Therefore, this check is a non-factor.
+
+**Recommendation:**
+
+**Do Not Verify.**
+
+**Reasoning:**
+
+1.  **Lack of Verifiable Claims:** The core issue is that the "case briefing" is completely devoid of any meaningful claims. It consists of placeholder text (Lorem Ipsum) and random characters. Verification is impossible without a clear claim or statement to test against the provided evidence.
+2.  **Irrelevant Evidence:**
+    *   `asdasd.txt`: This file contains the following text, `\nthis is some image please i hope this helps here in this case`. This does not correlate to the "briefing".
+    *   `SOP and Coldmailing.txt`: This file provides information on writing SOPs and cold emails for internship applications and contains contact details of two individuals which is irrelevant to the case brief which has zero claims.
+3.  **No Correlation:** There is absolutely no connection between the contents of the evidence documents and the non-existent claims of the case briefing.
+4. **AI Usage:** The text was not AI generated.
+
+**Conclusion:**
+
+Due to the lack of any actual claims in the case briefing, the presented evidence cannot be used to verify it. The evidence does not relate to the briefing. Therefore, the case should not be verified, given that the task is impossible with the data provided.
+Summary.txt: Okay, here's the analysis and recommendation:
+
+**Analysis:**
+
+The provided text clearly states that the content is a sample document filled with "Lorem ipsum" placeholder text and repetitive sentences. It explicitly points out that:
+
+*   The text is primarily "Lorem ipsum," which is filler.
+*   The purpose is to demonstrate formatting, not to convey meaning.
+*   There is no real information, data, or evidence.
+*   The text lacks a coherent narrative or argument.
+
+Based on this, it is very clear the content is not a case briefing in any meaningful sense of the term. It is essentially a demonstration of text layout. Since it is a sample text not intended to be factual, it is highly likely that AI generated it, which based on the requirement would indicate not to verify.
+
+**Recommendation:**
+
+**Do not verify this case briefing.**
+
+**Reasoning:**
+
+The content, by its own description, is:
+
+1.  **Not Factual:** It is explicitly stated that the text is placeholder and does not convey any actual information. Case briefings are meant to summarize factual cases and analysis.
+2.  **Lacks Substance:** It doesn't present any arguments, evidence, or analysis, which are all core components of a real case briefing.
+3. **AI Generated:** Given the nature of the content (placeholder text) and the lack of any real information, it is highly likely this text was AI-generated as a sample/demonstration.
+4. **Over 20 Percent AI Generated:** Given the nature of the text and the explanation that is it a sample with filler content we can assume that it would well exceed the 20 percent threshold for AI generation.
+
+Since the text is demonstrably filler, and a case briefing should be a summary of factual information, there is no need to verify it, the instructions also dictate that we not verify case briefings that are generated more than 20% by AI.

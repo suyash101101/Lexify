@@ -11,7 +11,7 @@ def Summarize(filepath):
     Summariser = Agent(
         name="Summariser",
         model = Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
-        tools=[FileTools()]
+        debug_mode = True
     )
 
     # Check if the output directory exists, if not, create it
@@ -19,14 +19,17 @@ def Summarize(filepath):
     output_dir = f'{revisedFilepath}/output'
     os.makedirs(output_dir, exist_ok=True)
 
+    with open(filepath, 'r', encoding='utf-8') as file:
+        content = file.read()
+        
     try:
         # Define the refined prompt
         prompt = (
-            "Please read the case briefing located at {filepath}. "
+            "Based on the given content : {content}"
             "Identify and summarize the key points, important sentences, and any critical details. "
             "Focus on the main arguments, conclusions, and any significant evidence presented. "
             "Present the summary in a clear and concise manner, highlighting the most relevant information."
-        ).format(filepath=filepath)
+        ).format(content=content)
 
         # Run the Summariser agent with the refined prompt
         run: RunResponse = Summariser.run(prompt)

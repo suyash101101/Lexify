@@ -1,7 +1,7 @@
 // services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}`;
 
 export const api = {
   // HAI specific endpoints
@@ -42,7 +42,7 @@ export const api = {
   getCaseDetails : async(case_id)=>{
     try{
       const response = await axios.get(`${API_BASE_URL}/api/hai/get-case-details/${case_id}`);
-      console.log(response.data)
+      // console.log(response.data)
       return response.data;
     }catch(error){
       console.error('Error fetching case details:', error);

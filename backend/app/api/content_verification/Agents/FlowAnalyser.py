@@ -10,7 +10,6 @@ def FlowAnalysis(filepath):
     Analyzer = Agent(
         name="Analyzer",
         model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
-        tools=[FileTools()],
         debug_mode=True
     )
 
@@ -19,14 +18,17 @@ def FlowAnalysis(filepath):
     output_dir = f'{revisedFilepath}/output'
     os.makedirs(output_dir, exist_ok=True)
 
+    with open(filepath, 'r', encoding='utf-8') as file:
+        content = file.read()
+    
     try:
         # Define the analysis prompt
         prompt = (
-            "Please read the case briefing located at {filepath}. "
+            "Based on the given content : {content}"
             "Analyze the document to determine if all scenarios in the case are connected. "
             "Identify any missing parts or inconsistencies in the case briefing. "
             "Provide a clear report on the connectivity of scenarios, highlighting any gaps or mistakes."
-        ).format(filepath=filepath)
+        ).format(content=content)
 
         # Run the Analyzer agent with the analysis prompt
         run: RunResponse = Analyzer.run(prompt)
