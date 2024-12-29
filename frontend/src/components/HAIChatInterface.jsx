@@ -24,7 +24,7 @@ const HAIChatInterface = () => {
   const { startListening, stopListening, isListening } = useSpeechRecognition();
 
   const { sendMessage, lastMessage, connectionStatus } = useWebSocket(
-    `ws://localhost:8000/ws/hai/${caseId}/${user?.sub}`
+    `${import.meta.env.VITE_WS_URL}/ws/hai/${caseId}/${user?.sub}`
   );
 
   useEffect(() => {
