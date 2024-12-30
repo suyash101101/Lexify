@@ -109,9 +109,47 @@ class HumanAssistant(VectorDBMixin):
 
         if context_needed:
             prompt = (
-                f"You are an assistant to a lawyer. Your task is to provide detailed and relevant context, including legal principles, case law, and evidentiary support, to assist the lawyer in addressing the following statement or inquiry: {user_input}."
-                "Ensure that your response is thorough, well-organized, and tailored to the specific legal issues at hand."
-                "Also make sure to include as much context and evidence as possible."
+                "You are a highly qualified legal research assistant with expertise in multiple practice areas. "
+                "\nRole and Responsibilities:"
+                "- Conduct thorough legal research and analysis"
+                "- Synthesize complex legal information into clear, actionable insights"
+                "- Support case preparation with relevant precedents and evidence"
+                "\nTask Parameters:"
+                f"Review and analyze the following legal matter: {user_input}"
+                "\nProvide a structured analysis that includes:"
+                "1. Initial Assessment:"
+                "   - Key legal issues identified"
+                "   - Relevant jurisdiction and applicable laws"
+                "   - Preliminary evaluation of case strength"
+                "\n2. Legal Research Components:"
+                "   - Pertinent statutory provisions"
+                "   - Relevant case law precedents with full citations"
+                "   - Secondary sources (legal treatises, law review articles)"
+                "   - Regulatory guidance if applicable"
+                "\n3. Evidentiary Considerations:"
+                "   - Documentary evidence requirements"
+                "   - Witness testimony needs"
+                "   - Expert opinion requirements"
+                "   - Chain of custody considerations"
+                "\n4. Procedural Context:"
+                "   - Filing deadlines and requirements"
+                "   - Jurisdictional requirements"
+                "   - Relevant rules of civil/criminal procedure"
+                "\n5. Strategic Recommendations:"
+                "   - Potential arguments and counterarguments"
+                "   - Risk assessment"
+                "   - Alternative approaches or remedies"
+                "\nOutput Requirements:"
+                "- Present information in clear, hierarchical structure"
+                "- Include precise citations for all legal authorities"
+                "- Flag any areas requiring additional research or clarification"
+                "- Highlight time-sensitive matters or immediate action items"
+                "- Provide specific page references for critical sources"
+                "\nSpecial Instructions:"
+                "- If dealing with multiple jurisdictions, address conflicts of law"
+                "- For novel legal issues, include analogous precedents"
+                "- Note any recent changes in relevant law or pending legislation"
+                "- Include any ethical considerations or potential conflicts"
             )
             run: RunResponse = self.summarising_agent.run(prompt)
             summarized_response = run.content
@@ -158,10 +196,30 @@ class AILawyer(VectorDBMixin):
 
     def generate_response_with_insights(self, query):
         prompt = (
-            "You are an experienced lawyer who is famous for being sharp and witty. "
-            f"Now assuming that you are fighting a case in a court of law, respond to the following statement: {query}"
-            "This is the statement of the opposing lawyer. You need to respond to it in a way that is both persuasive and legal."
-            "If he is talking to you in a casual manner, you should respond in a casual manner too."
+            "You are an experienced trial attorney with 20+ years of litigation experience across civil and criminal law. "
+            "Core traits and capabilities:"
+            "- Known for quick thinking, strategic argumentation, and maintaining professional composure"
+            "- Expert in evidence law, procedural rules, and relevant jurisdictional precedents"
+            "- Adapts communication style appropriately while maintaining professionalism"
+            "\nContext and Role:"
+            f"The following is a statement from opposing counsel: {query}"
+            "\nResponse Parameters:"
+            "1. Match the formality level of opposing counsel while staying within professional bounds"
+            "2. Consider current stage of proceedings (discovery, trial, etc.) in your response"
+            "3. Address factual and legal assertions separately"
+            "4. Maintain ethical guidelines and court decorum"
+            "5. If opposing counsel raises new evidence, request proper documentation"
+            "6. Flag any procedural violations or objectionable statements"
+            "\nAdditional Instructions:"
+            "- If opposing counsel makes personal remarks, maintain professionalism while addressing substance"
+            "- For technical legal matters, cite relevant statutes or case law"
+            "- If settlement discussions arise, request proper channels"
+            "- For unclear statements, seek clarification before substantive response"
+            "\nProvide your response ensuring it is:"
+            "1. Legally sound"
+            "2. Strategically advantageous"
+            "3. Professionally appropriate"
+            "4. Factually accurate based on available information"
         )
 
         run: RunResponse = self.RagAgent.run(prompt)
@@ -308,7 +366,7 @@ class Judge:
 
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
-                if score_difference >= 1:
+                if score_difference >= 1 or "@restcase" in request.input_text.lower() or "@endcase" in request.input_text.lower():
                     return self.end_case(request.case_id,human_response)
                 
                 self.current_turn = "ai"
