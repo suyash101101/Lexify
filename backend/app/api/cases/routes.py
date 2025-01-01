@@ -103,8 +103,7 @@ async def list_cases():
     """Lists all cases"""
     return redis_client.list_cases()
 
-@router.post("/create") # here in the case of the create case schema remove the submit evidence thing and in the case of the create case along with the funcionality return also the response or particularly what is the data for the same side by side ke basically verify thayu chhe ke nahi and store karti vakhte store in teh case_reports/caseid folder and side by side dar ek aa folder na andar aa naam toh pdf toh hase j and next side by side ena andar content verification folder pan banavai devanu and next time jyare vector database na andar ni vastu jyare thaay tyare e case ma je vector database chhe ena maate case id pan andar aavu joiye so that next time only for the paritcular context of the given case e vastu banine rehse side by side 
-# or else ek biju evu karvanu rehse ke for the case of the conversations ene still redis na upar muki rakhvanu and along with turn repsonse also return the comment passed by the judge to the frontend side by side to be shown to the user
+@router.post("/create")
 async def create_case(case_data: CaseCreateSchema):
     """Creates a new case with initial evidence"""
     try:
@@ -239,3 +238,58 @@ async def update_case_status(case_id: str, status: dict):
 
     
     return updated_case
+
+@router.delete("/{case_id}")
+async def delete_case(case_id: str):
+    """Deletes a case and all associated data"""
+    case = redis_client.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    try:
+        # Delete case from Redis
+        redis_client.delete_case(case_id)
+        
+        # Delete case files and directories
+        case_dir = f'app/case_reports/{case_id}'
+        if os.path.exists(case_dir):
+            import shutil
+            shutil.rmtree(case_dir)
+        
+        return {"message": "Case deleted successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting case: {str(e)}"
+        )
+
+@router.patch("/{case_id}")
+async def update_case(case_id: str, case_data: dict):
+    """Updates case details"""
+    case = redis_client.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    try:
+        # Update allowed fields
+        if "title" in case_data:
+            case["title"] = case_data["title"]
+        if "description" in case_data:
+            case["description"] = case_data["description"]
+        if "case_status" in case_data:
+            case["case_status"] = case_data["case_status"]
+        
+        case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        
+        # Update case in Redis
+        updated_case = redis_client.update_case(case_id, case)
+        
+        # Regenerate PDF with updated information
+        generate_case_pdf(case)
+        
+        return updated_case
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating case: {str(e)}"
+        )

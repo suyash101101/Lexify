@@ -24,6 +24,14 @@ class RedisClient:
         self.redis.set(f"case:{case_id}", json.dumps(case_data))
         return case_data
 
+    def delete_case(self, case_id: str):
+        """Deletes a case from Redis"""
+        # Remove case data
+        self.redis.delete(f"case:{case_id}")
+        # Remove case ID from the set of cases
+        self.redis.srem("cases", case_id)
+        return True
+
     def list_cases(self):
         case_ids = self.redis.smembers("cases")
         cases = []

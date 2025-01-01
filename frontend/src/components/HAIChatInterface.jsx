@@ -22,6 +22,7 @@ const HAIChatInterface = () => {
   const messagesEndRef = useRef(null);
   const { user } = useAuth0();
   const { startListening, stopListening, isListening } = useSpeechRecognition();
+  const endRef = useRef(null);
 
   const { sendMessage, lastMessage, connectionStatus } = useWebSocket(
     `${import.meta.env.VITE_WS_URL}/ws/hai/${caseId}/${user?.sub}`
@@ -52,6 +53,7 @@ const HAIChatInterface = () => {
         //     current_response=first_directive,
         //     human_score=0.0,
         //     ai_score=0.0
+        //      last_response = last_response (basically only for handling the winner case)
         // )
         //this contains the first directive which is the lawyer context 
       //   LawyerContext(
@@ -62,6 +64,15 @@ const HAIChatInterface = () => {
       // )
           console.log("game state update: ",state)
           setGameState(state);
+
+          if(state.case_status === 'closed' && state.last_response) {
+            setMessages(prev => [...prev, {
+              speaker: state.last_response.speaker,
+              content: state.last_response.input,
+              context: state.last_response.context,
+              score: state.last_response.score
+            }]);
+          }
           
           if (state.current_response) {
             setMessages(prev => [...prev, {
@@ -133,6 +144,12 @@ const HAIChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(()=>{
+    if(gameState?.case_status === 'closed'){
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  },[gameState?.case_status])
+
   const formatMessage = (content) => {
     return content.match(/\d+\./) ? formatMarkdownResponse(content) : <p>{content}</p>;
   };
@@ -167,7 +184,7 @@ const HAIChatInterface = () => {
           )}
         </div>
         <div className="text-gray-700">
-          {formatMessage(msg.content)}
+          {msg.content}
         </div>
         {msg.context && (
           <motion.div 
@@ -280,7 +297,7 @@ const HAIChatInterface = () => {
                       )}
                     </div>
                     <div className={`text-base ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
-                      {formatMessage(msg.content)}
+                      {msg.content}
                     </div>
                     {msg.context && (
                       <motion.div 
@@ -312,9 +329,10 @@ const HAIChatInterface = () => {
               >
                 <MessageCircle className="w-4 h-4 text-gray-400 animate-pulse" />
                 <span className="text-sm text-gray-500">
-                  {gameState?.next_turn === 'ai' ? 
-                    'AI Lawyer is preparing response...' : 
-                    'The Judge is speaking...'}
+                  {gameState?.case_status === 'closed' ? 'The case is closed' : 
+                    gameState?.next_turn === 'ai' ? 
+                      'AI Lawyer is preparing response...' : 
+                      'The Judge is analyzing and speaking...'}
                 </span>
               </motion.div>
             )}
@@ -374,7 +392,7 @@ const HAIChatInterface = () => {
       )}
 
       {/* Case Closed State */}
-      {gameState?.case_status === 'closed' && (
+      {/* {gameState?.case_status === 'closed' && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -389,7 +407,24 @@ const HAIChatInterface = () => {
             </p>
           </div>
         </motion.div>
-      )}
+      )} */}
+      <div>
+        {(gameState?.case_status === 'closed' || gameState?.case_status === 'Closed') && (
+          <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/70 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg"
+          >
+            <Award className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+            <h3 className="text-2xl font-bold mb-2 text-gray-800">Case Closed</h3>
+            <p className="text-lg mb-2 text-gray-700">Winner: {gameState.winner}</p>
+            <p className="text-sm text-gray-600 mb-4">
+              Final Score Difference: {gameState.score_difference?.toFixed(2)}
+            </p>
+          </motion.div>
+        )}
+        <div ref={endRef}/>
+        </div>
     </motion.div>
   );
 };

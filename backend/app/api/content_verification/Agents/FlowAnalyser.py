@@ -10,7 +10,6 @@ def FlowAnalysis(filepath):
     Analyzer = Agent(
         name="Analyzer",
         model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
-        tools=[FileTools()],
         debug_mode=True
     )
 
@@ -19,14 +18,67 @@ def FlowAnalysis(filepath):
     output_dir = f'{revisedFilepath}/output'
     os.makedirs(output_dir, exist_ok=True)
 
+    with open(filepath, 'r', encoding='utf-8') as file:
+        content = file.read()
+    
     try:
         # Define the analysis prompt
         prompt = (
-            "Please read the case briefing located at {filepath}. "
-            "Analyze the document to determine if all scenarios in the case are connected. "
-            "Identify any missing parts or inconsistencies in the case briefing. "
-            "Provide a clear report on the connectivity of scenarios, highlighting any gaps or mistakes."
-        ).format(filepath=filepath)
+            "You are a senior legal analyst specializing in case assessment and quality control. "
+            "\nDocument Analysis Parameters:"
+            f"Review the following case material: {content}"
+            "\nAnalysis Framework:"
+            "1. Case Structure Evaluation:"
+            "   - Chronological sequence of events"
+            "   - Causal relationships between incidents"
+            "   - Key stakeholder interactions"
+            "   - Decision points and outcomes"
+            "\n2. Scenario Connectivity Assessment:"
+            "   - Internal logical consistency"
+            "   - Temporal alignment of events"
+            "   - Stakeholder motivation coherence"
+            "   - Environmental and contextual consistency"
+            "\n3. Gap Analysis Requirements:"
+            "   - Missing factual elements"
+            "   - Unexplained transitions"
+            "   - Incomplete stakeholder profiles"
+            "   - Documentation gaps"
+            "   - Procedural oversights"
+            "\n4. Consistency Verification:"
+            "   - Internal fact validation"
+            "   - Timeline verification"
+            "   - Legal principle application"
+            "   - Procedural compliance"
+            "\nReport Structure:"
+            "1. Executive Summary:"
+            "   - Overall case coherence assessment"
+            "   - Critical findings summary"
+            "   - Priority concerns"
+            "\n2. Detailed Analysis:"
+            "   - Scenario interconnections"
+            "   - Supporting evidence quality"
+            "   - Procedural completeness"
+            "\n3. Gap Identification:"
+            "   - Material omissions"
+            "   - Logical inconsistencies"
+            "   - Evidence deficiencies"
+            "\n4. Recommendations:"
+            "   - Required additional documentation"
+            "   - Suggested clarifications"
+            "   - Process improvements"
+            "\nQuality Control Measures:"
+            "- Verify all cited documents"
+            "- Cross-reference statements"
+            "- Validate chronological order"
+            "- Assess evidence completeness"
+            "- Evaluate procedural compliance"
+            "\nOutput Requirements:"
+            "- Present findings in clear, professional language"
+            "- Prioritize issues by significance"
+            "- Provide specific examples for identified issues"
+            "- Include actionable recommendations"
+            "- Reference specific sections of source material"
+        )
 
         # Run the Analyzer agent with the analysis prompt
         run: RunResponse = Analyzer.run(prompt)

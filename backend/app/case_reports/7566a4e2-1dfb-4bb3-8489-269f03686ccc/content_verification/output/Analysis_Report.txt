@@ -1,0 +1,5 @@
+/Users/Jack/Documents/Case Reports/7566a4e2 nội/phishing-investigation.txt failed automated phishing investigation analysis. 
+
+Explanation of analysis: For automated analysis the document submitted must begin with exposes to an external or internal attack"
+
+Reason: first paragraph does not begin with ‘exposes’ or indicate external or internal threat

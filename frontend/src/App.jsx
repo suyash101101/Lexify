@@ -5,11 +5,13 @@ import Navigation from './components/Navigation';
 import Landing from './components/Landing';
 import Cases from './components/Cases';
 import CreateCase from './components/CreateCase';
+import EditCase from './components/EditCase';
 import Profile from './components/Profile';
 import DashboardLayout from './components/layouts/DashboardLayout';
 import ContactUs from './components/ContactUs';
 import Consulting from './components/Consulting';
 import HAIChatInterface from './components/HAIChatInterface';
+import HAIReviewConversation from './components/HAIReviewConversation';
 import Login from './components/Login';
 import { Loading } from './components/shared/Loading';
 import Pricing from './pages/Pricing';
@@ -65,6 +67,11 @@ const App = () => {
             <CreateCase />
           </PrivateRoute>
         } />
+        <Route path="/cases/:caseId/edit" element={
+          <PrivateRoute>
+            <EditCase />
+          </PrivateRoute>
+        } />
         <Route path="/contactus" element={
           <PrivateRoute>
             <ContactUs />
@@ -84,6 +91,11 @@ const App = () => {
         <Route path="/chat/:case_id" element={
           <PrivateRoute>
             <HAIChatInterface />
+          </PrivateRoute>
+        } />
+        <Route path="/chat/:case_id/review" element={
+          <PrivateRoute>
+            <HAIReviewConversation />
           </PrivateRoute>
         } />
       </Routes>
