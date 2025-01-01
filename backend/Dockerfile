@@ -1,14 +1,31 @@
-# Use the official Redis image from Docker Hub
-FROM redis/redis-stack:latest
+# Use Python 3.11 slim image as base
+FROM python:3.11-slim
 
-# Set the working directory (optional)
-WORKDIR /data
+# Set working directory
+WORKDIR /app
 
-# Expose the necessary ports
-EXPOSE 6379 8001
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Healthcheck command to ensure Redis is running
-HEALTHCHECK CMD redis-cli ping
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Command to run Redis server
-CMD ["redis-server"]
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install -r requirements.txt
+
+# Copy the rest of the application
+COPY . .
+
+# Create necessary directories if they don't exist
+RUN mkdir -p app/consultancy/data app/case_reports
+
+
+# Command to run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]

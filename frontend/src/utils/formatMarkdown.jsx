@@ -27,7 +27,7 @@ export const formatMarkdownResponse = (text) => {
       )}
       
       {/* Numbered points */}
-      {points.length > 0 && (
+      {/* {points.length > 0 && (
         <ul className="space-y-3">
           {points.map((point, index) => {
             const [number, content] = point.split('. ');
@@ -44,7 +44,7 @@ export const formatMarkdownResponse = (text) => {
             );
           })}
         </ul>
-      )}
+      )} */}
 
       {/* Closing remarks */}
       {closingRemarks && (

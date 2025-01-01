@@ -1,0 +1,10 @@
+AITest.txt: **Recommendation:** Verify the case briefing.
+
+**Reasoning:**
+
+The analysis indicates that:
+
+*   **AI-generated content is 0%:** There are no identified AI-generated chunks in the text.
+*   **Human-written content is 100%:** All chunks are identified as human-written.
+
+The requirement states not to verify a case if the AI-generated text is greater than 20%. Since the AI percentage is 0%, this requirement is not violated, and the briefing should be verified.

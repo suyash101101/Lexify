@@ -17,18 +17,18 @@ from reportlab.platypus import (
 from reportlab.platypus.para import Paragraph
 from reportlab.platypus.flowables import KeepTogether
 import os
+from ..content_verification.main import ContentVerification
 
 
 
-file_path = r'../content-verification/case.txt'
-reference_path = r'../content-verification/references'
+
 
 def generate_case_pdf(case: dict) -> str:
     """
     Generate a minimal PDF report for a case
     """
-    os.makedirs('case_reports', exist_ok=True)
-    pdf_filename = f'case_reports/case_{case["case_id"]}.pdf'
+    os.makedirs(f'app/case_reports/{case["case_id"]}', exist_ok=True)
+    pdf_filename = f'app/case_reports/{case["case_id"]}/case_{case["case_id"]}.pdf'
     
     doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
     styles = getSampleStyleSheet()
@@ -107,18 +107,35 @@ async def list_cases():
 async def create_case(case_data: CaseCreateSchema):
     """Creates a new case with initial evidence"""
     try:
-        os.makedirs('content-verification', exist_ok=True)
-        file_path = os.path.join('content-verification', 'case.txt')
+        case_id = str(uuid.uuid4())
+        
+        os.makedirs(f'app/case_reports/{case_id}', exist_ok=True)
+        os.makedirs(f'app/case_reports/{case_id}/content_verification', exist_ok=True)
+        os.makedirs(f'app/case_reports/{case_id}/content_verification/references', exist_ok=True)
+        file_path = os.path.join(f'app/case_reports/{case_id}/content_verification', 'case.txt')
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(case_data.description)
         
         for file in case_data.files:
-            os.makedirs('content-verification/references', exist_ok=True)
-            reference_file_path = os.path.join('content-verification/references', f"{file.original_name.split('.')[0]}.txt")
+            os.makedirs(f'app/case_reports/{case_id}/content_verification/references', exist_ok=True)
+            reference_file_path = os.path.join(f'app/case_reports/{case_id}/content_verification/references', f"{file.original_name.split('.')[0]}.txt")
             with open(reference_file_path, 'w', encoding='utf-8') as f:
                 f.write(file.description)
 
-        case_id = str(uuid.uuid4())
+        for file in case_data.lawyer2_files:
+            os.makedirs(f'app/case_reports/{case_id}/content_verification/references', exist_ok=True)
+            reference_file_path = os.path.join(f'app/case_reports/{case_id}/content_verification/references', f"{file.original_name.split('.')[0]}.txt")
+            with open(reference_file_path, 'w', encoding='utf-8') as f:
+                f.write(file.description)
+
+        file_path = f'app/case_reports/{case_id}/content_verification/case.txt'
+        reference_path = f'app/case_reports/{case_id}/content_verification/references'
+
+        content_verifier = ContentVerification(file_path, reference_path)
+        verification_results = content_verifier.verify_content(file_path, reference_path)
+        print(verification_results)
+
+
         case_obj = {
             "case_id": case_id,
             "title": case_data.title,
@@ -132,7 +149,14 @@ async def create_case(case_data: CaseCreateSchema):
                     "submitted_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 } for file in case_data.files
             ],
-            "lawyer2_evidences": [],#this will be given to the lawyer itself 
+            "lawyer2_evidences": [
+                {
+                    "ipfs_hash": file.ipfs_hash, # this will be changed later once we swtich to buckets or somethign like that 
+                    "description": file.description,
+                    "original_name": file.original_name,
+                    "submitted_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                } for file in case_data.lawyer2_files
+            ],#this will be given to the lawyer itself 
             "case_status": case_data.case_status,
             "created_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
             "updated_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -159,8 +183,8 @@ async def submit_evidence(case_id: str, evidence_data: EvidenceSubmissionSchema)
         raise HTTPException(status_code=404, detail="Case not found")
     
     for file in evidence_data.evidences:
-        os.makedirs('content-verification/references', exist_ok=True)
-        reference_file_path = os.path.join('content-verification/references', f"{file.original_name.split('.')[0]}.txt")
+        os.makedirs('content_verification/references', exist_ok=True)
+        reference_file_path = os.path.join('content_verification/references', f"{file.original_name.split('.')[0]}.txt")
         with open(reference_file_path, 'w', encoding='utf-8') as f:
             f.write(file.description)
 
@@ -214,3 +238,58 @@ async def update_case_status(case_id: str, status: dict):
 
     
     return updated_case
+
+@router.delete("/{case_id}")
+async def delete_case(case_id: str):
+    """Deletes a case and all associated data"""
+    case = redis_client.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    try:
+        # Delete case from Redis
+        redis_client.delete_case(case_id)
+        
+        # Delete case files and directories
+        case_dir = f'app/case_reports/{case_id}'
+        if os.path.exists(case_dir):
+            import shutil
+            shutil.rmtree(case_dir)
+        
+        return {"message": "Case deleted successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting case: {str(e)}"
+        )
+
+@router.patch("/{case_id}")
+async def update_case(case_id: str, case_data: dict):
+    """Updates case details"""
+    case = redis_client.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    try:
+        # Update allowed fields
+        if "title" in case_data:
+            case["title"] = case_data["title"]
+        if "description" in case_data:
+            case["description"] = case_data["description"]
+        if "case_status" in case_data:
+            case["case_status"] = case_data["case_status"]
+        
+        case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        
+        # Update case in Redis
+        updated_case = redis_client.update_case(case_id, case)
+        
+        # Regenerate PDF with updated information
+        generate_case_pdf(case)
+        
+        return updated_case
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating case: {str(e)}"
+        )

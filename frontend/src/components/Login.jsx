@@ -1,117 +1,72 @@
 import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Button, 
-  Container, 
-  Typography, 
-  Box, 
-  Paper, 
-  CircularProgress 
-} from '@mui/material';
-import { motion } from 'framer-motion';
-import { LockIcon, AlertCircle } from 'lucide-react';
+import { Scale, ArrowRight } from 'lucide-react';
+import { Button } from './shared/Button';
+import { Loading } from './shared/Loading';
 
 const Login = () => {
-  const { loginWithRedirect, isAuthenticated, isLoading, user, error } = useAuth0();
+  const { loginWithRedirect, isAuthenticated, isLoading } = useAuth0();
   const navigate = useNavigate();
   const location = useLocation();
 
   React.useEffect(() => {
-    if (isAuthenticated && user) {
-      sessionStorage.setItem('userAddress', user.sub);
-      const destination = location.state?.returnTo || '/profile';
+    if (isAuthenticated) {
+      const destination = location.state?.returnTo || '/cases';
       navigate(destination, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, location]);
-
-  const handleLogin = async () => {
-    try {
-      await loginWithRedirect({
-        appState: { 
-          returnTo: '/profile'
-        },
-        authorizationParams: {
-          prompt: 'login',
-          redirect_uri: window.location.origin
-        }
-      });
-    } catch (err) {
-      console.error('Login error:', err);
-    }
-  };
+  }, [isAuthenticated, navigate, location]);
 
   if (isLoading) {
-    return (
-      <Container maxWidth="sm" sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container maxWidth="sm" sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 400 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <AlertCircle color="error" />
-            <Typography variant="h6" color="error">Authentication Error</Typography>
-          </Box>
-          <Typography color="error" gutterBottom>
-            {error.message}
-          </Typography>
-          <Button 
-            fullWidth
-            variant="contained" 
-            onClick={() => window.location.reload()}
-            sx={{ mt: 2 }}
-          >
-            Retry
-          </Button>
-        </Paper>
-      </Container>
-    );
-  }
-
-  if (isAuthenticated) {
-    navigate('/profile', { replace: true });
-    return null;
+    return <Loading />;
   }
 
   return (
-    <Container maxWidth="sm" sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 400 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-            <LockIcon size={48} color="primary" />
-            <Typography variant="h4" component="h1" gutterBottom sx={{ mt: 2 }}>
-              Welcome
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary" align="center">
-              Sign in to JusticeChain to access your cases and more
-            </Typography>
-          </Box>
-          
-          <Button 
-            fullWidth
-            variant="contained" 
-            onClick={handleLogin}
-            size="large"
-            startIcon={<LockIcon size={18} />}
+    <div className="min-h-screen bg-accent-white relative overflow-hidden flex items-center justify-center px-4">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[url('/pattern.png')] opacity-[0.02]" />
+      
+      {/* Content */}
+      <div className="relative bg-accent-white border border-primary-main/5 rounded-3xl p-8 md:p-12 w-full max-w-md">
+        <div className="flex flex-col items-center text-center">
+          {/* Logo */}
+          <div className="mb-8">
+            <div className="w-16 h-16 bg-primary-main rounded-2xl flex items-center justify-center mb-4">
+              <Scale className="w-8 h-8 text-accent-white" />
+            </div>
+            <h1 className="text-2xl font-display font-bold text-primary-main">
+              Welcome to Lexify
+            </h1>
+          </div>
+
+          {/* Description */}
+          <p className="text-primary-main/60 mb-8 leading-relaxed">
+            Sign in to access your AI-powered legal practice platform. Transform your legal expertise with cutting-edge technology.
+          </p>
+
+          {/* Sign In Button */}
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={() => loginWithRedirect({
+              appState: { returnTo: location.state?.returnTo || '/cases' }
+            })}
+            className="w-full sm:w-auto text-sm sm:text-base py-2.5 px-5 sm:py-3 sm:px-6 hover:opacity-90 transition-opacity"
           >
-            Sign In with Google
+            <span>Sign in with Google</span>
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
           </Button>
-          
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 3 }}>
-            By signing in, you agree to our Terms of Service and Privacy Policy
-          </Typography>
-        </Paper>
-      </motion.div>
-    </Container>
+
+          {/* Terms */}
+          <p className="mt-6 text-sm text-primary-main/40">
+            By signing in, you agree to our{' '}
+            <a href="#terms" className="text-primary-main hover:underline">Terms of Service</a>
+            {' '}and{' '}
+            <a href="#privacy" className="text-primary-main hover:underline">Privacy Policy</a>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

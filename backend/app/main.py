@@ -16,6 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Hello Lexions!"}
+
 # Include routers
 app.include_router(cases_router, prefix="/cases", tags=["cases"])
 app.include_router(websocket_router, tags=["websocket"])

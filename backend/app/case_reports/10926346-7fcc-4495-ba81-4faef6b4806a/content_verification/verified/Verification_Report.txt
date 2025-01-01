@@ -1,0 +1,5 @@
+AITest.txt: **Recommendation:** Do NOT verify the case briefing.
+
+**Reasoning:**
+
+The content analysis indicates that the AI-generated portion of the text is 28.57%. This exceeds the threshold of 20% for verification. According to the instructions, if the AI-generated text is greater than 20%, the case briefing should not be verified.

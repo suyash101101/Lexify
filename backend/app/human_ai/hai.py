@@ -6,13 +6,9 @@ import os
 from dotenv import load_dotenv
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
 from ..config import settings
-import random
-import spacy
 from phi.model.google import Gemini
 from dotenv import load_dotenv
 from phi.agent import Agent, RunResponse
-from phi.model.openai.like import OpenAILike
-from phi.model.ollama import Ollama
 from phi.knowledge.llamaindex import LlamaIndexKnowledgeBase
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from reportlab.lib.pagesizes import letter
@@ -21,8 +17,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from io import BytesIO
-import requests
 import re
+from ..db.redis_db import redis_client
 
 load_dotenv()
 
@@ -49,6 +45,8 @@ class TurnResponse(BaseModel):
     human_score: float
     ai_score: float
     ipfs_hash: Optional[str] = None
+    judge_comment: Optional[str] = None
+    last_response: Optional[LawyerContext] = None
 
 class ProcessInputRequest(BaseModel):
     turn_type: str
@@ -58,54 +56,132 @@ class ProcessInputRequest(BaseModel):
 class ConversationList(BaseModel):
     conversations: List[LawyerContext]
 
+class messageContext(BaseModel):
+    input : str
+    context : str
+
 class VectorDBMixin:
     """Base class for vector database functionality"""
-    def __init__(self):
+    def __init__(self,case_id:str):
         # Initialize vector database
-        if not os.path.exists('case_reports'):
-            raise Exception("case_reports directory not found")
+        data_dir = f'app/case_reports/{case_id}'
+        # print(f"Loading documents from: {data_dir}")  # Debug print
+        try:
+            # Add more file types and configure reader
+            documents = SimpleDirectoryReader(
+                input_dir=data_dir,
+                recursive=True,
+                required_exts=[".txt",".pdf"],  # Specify accepted file types
+                exclude_hidden=True
+            ).load_data()
             
-        documents = SimpleDirectoryReader(input_dir='case_reports').load_data()
-        self.index = VectorStoreIndex.from_documents(documents)
-        self.retriever = self.index.as_retriever()
+            # print(f"Loaded {len(documents)} documents while creating the vector database")  # Debug print
+            # print(documents)
+            
+            if not documents:
+                raise ValueError(f"No documents found in {data_dir}")
+            
+            # Configure chunking for better context
+            self.index = VectorStoreIndex.from_documents(documents)
+            self.retriever = self.index.as_retriever()
+            
+        except Exception as e:
+            print(f"Error loading documents: {e}")
+            raise
 
 class HumanAssistant(VectorDBMixin):
-    def __init__(self):
-        super().__init__()
+    def __init__(self,case_id:str):
+        super().__init__(case_id)
+        # Initialize knowledge base
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
+        
+        # Initialize agents with Galadriel
+                    # self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
+            #knowledge_base=self.knowledge_base, search_knowledge=True)
+        # print("initializing the agent for the same")
         self.summarising_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
+        
         self.context_checker = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        # print("initailized the agent for the same")
 
     def ask(self,user_input):
         context_needed = self.check_context_need(user_input)
 
         if context_needed:
             prompt = (
-                f"You are an assistant to a lawyer. Your task is to provide detailed and relevant context, including legal principles, case law, and evidentiary support, to assist the lawyer in addressing the following statement or inquiry: {user_input}."
-                "Ensure that your response is thorough, well-organized, and tailored to the specific legal issues at hand."
-                "Also make sure to include as much context and evidence as possible."
+                "You are a highly qualified legal research assistant with expertise in multiple practice areas. "
+                "\nRole and Responsibilities:"
+                "- Conduct thorough legal research and analysis"
+                "- Synthesize complex legal information into clear, actionable insights"
+                "- Support case preparation with relevant precedents and evidence"
+                "\nTask Parameters:"
+                f"Review and analyze the following legal matter: {user_input}"
+                "\nProvide a structured analysis that includes:"
+                "1. Initial Assessment:"
+                "   - Key legal issues identified"
+                "   - Relevant jurisdiction and applicable laws"
+                "   - Preliminary evaluation of case strength"
+                "\n2. Legal Research Components:"
+                "   - Pertinent statutory provisions"
+                "   - Relevant case law precedents with full citations"
+                "   - Secondary sources (legal treatises, law review articles)"
+                "   - Regulatory guidance if applicable"
+                "\n3. Evidentiary Considerations:"
+                "   - Documentary evidence requirements"
+                "   - Witness testimony needs"
+                "   - Expert opinion requirements"
+                "   - Chain of custody considerations"
+                "\n4. Procedural Context:"
+                "   - Filing deadlines and requirements"
+                "   - Jurisdictional requirements"
+                "   - Relevant rules of civil/criminal procedure"
+                "\n5. Strategic Recommendations:"
+                "   - Potential arguments and counterarguments"
+                "   - Risk assessment"
+                "   - Alternative approaches or remedies"
+                "\nOutput Requirements:"
+                "- Present information in clear, hierarchical structure"
+                "- Include precise citations for all legal authorities"
+                "- Flag any areas requiring additional research or clarification"
+                "- Highlight time-sensitive matters or immediate action items"
+                "- Provide specific page references for critical sources"
+                "\nSpecial Instructions:"
+                "- If dealing with multiple jurisdictions, address conflicts of law"
+                "- For novel legal issues, include analogous precedents"
+                "- Note any recent changes in relevant law or pending legislation"
+                "- Include any ethical considerations or potential conflicts"
             )
             run: RunResponse = self.summarising_agent.run(prompt)
             summarized_response = run.content
             return [user_input,summarized_response]
         else:
             return [user_input,"No context needed"]
+        #later change this to the output schema only 
         
     def check_context_need(self, user_input):
         prompt = (
             "You are an intelligent assistant to a lawyer. "
             "Based on the following statement by a lawyer, determine if additional legal context is needed:\n"
             f"'{user_input}'\n"
-            "As long as the sentence is not a casual conversation sentence respond with 'yes' else 'no'"
+            "Please respond with 'yes' if the statement references specific legal issues or evidence that require additional context. "
+            "Respond with 'no' if the statement is a casual greeting or does not reference any legal matters."
         )
+        
+        # Run the context checker with the refined prompt
         run: RunResponse = self.context_checker.run(prompt)
-        decision = run.content
-        return decision[:3] == "Yes"
+        decision = run.content.strip()
+        
+        # Use regular expressions to check for 'yes' or 'no' responses
+        if re.match(r'(?i)yes', decision):
+            return True
+        else:
+            return False
 
 class AILawyer(VectorDBMixin):
-    def __init__(self):
-        super().__init__()  # Initialize vector database
+    def __init__(self,case_id:str):
+        super().__init__(case_id)  # Initialize vector database
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
+        # self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
         self.RagAgent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, search_knowledge=True)
 
     def respond(self, query):
@@ -120,11 +196,30 @@ class AILawyer(VectorDBMixin):
 
     def generate_response_with_insights(self, query):
         prompt = (
-            "You are an experienced lawyer who is famous for being sharp and witty. "
-            f"Now assuming that you are fighting a case in a court of law, respond to the following statement: {query}"
-            "This is the statement of the opposing lawyer. You need to respond to it in a way that is both persuasive and legal."
-            "If he is talking to you in a casual manner, you should respond in a casual manner too."
-            "Always refer to the opposite lawyer when speaking and dont use anything other than fellow lawyer to start a conversation."
+            "You are an experienced trial attorney with 20+ years of litigation experience across civil and criminal law. "
+            "Core traits and capabilities:"
+            "- Known for quick thinking, strategic argumentation, and maintaining professional composure"
+            "- Expert in evidence law, procedural rules, and relevant jurisdictional precedents"
+            "- Adapts communication style appropriately while maintaining professionalism"
+            "\nContext and Role:"
+            f"The following is a statement from opposing counsel: {query}"
+            "\nResponse Parameters:"
+            "1. Match the formality level of opposing counsel while staying within professional bounds"
+            "2. Consider current stage of proceedings (discovery, trial, etc.) in your response"
+            "3. Address factual and legal assertions separately"
+            "4. Maintain ethical guidelines and court decorum"
+            "5. If opposing counsel raises new evidence, request proper documentation"
+            "6. Flag any procedural violations or objectionable statements"
+            "\nAdditional Instructions:"
+            "- If opposing counsel makes personal remarks, maintain professionalism while addressing substance"
+            "- For technical legal matters, cite relevant statutes or case law"
+            "- If settlement discussions arise, request proper channels"
+            "- For unclear statements, seek clarification before substantive response"
+            "\nProvide your response ensuring it is:"
+            "1. Legally sound"
+            "2. Strategically advantageous"
+            "3. Professionally appropriate"
+            "4. Factually accurate based on available information"
         )
 
         run: RunResponse = self.RagAgent.run(prompt)
@@ -132,16 +227,19 @@ class AILawyer(VectorDBMixin):
         return run.content
 
 class HumanLawyer:
-    def __init__(self):
-        self.assistant = HumanAssistant()
+    def __init__(self,case_id:str):
+        self.assistant = HumanAssistant(case_id)
 
-    def ask(self):
-        argument = input("Human Lawyer: ")  # Prompt for user input #here is the post request part about how the input will be taken in the case of the user 
+    def ask(self, argument):
         response = self.assistant.ask(argument)
         
         # Format output with input and context
-        output = f"Input: {response[0]}. Context: {response[1]}."
-        return output # pydantic model with the schema should be there in this case
+        output = messageContext(
+            input = response[0],
+            context = response[1]
+        )
+        return output 
+    # pydantic model with the schema should be there in this case
     
 #Judge and Simulation Logic 
 
@@ -156,7 +254,8 @@ class Judge:
         self.coherence_model = pipeline("text-classification", model="textattack/bert-base-uncased-snli")
         self.tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
         self.current_turn = None  # Track whose turn it is
-        self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        # self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
+        self.judge = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))        # self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
         self.score_analyser = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")))
 
     def analyze_response(self, response, is_human):
@@ -234,49 +333,6 @@ class Judge:
             ai_score=0.0
         )
 
-    def append_to_case_pdf(self, case_id: str, conversation: LawyerContext):
-        """Append a single conversation entry to the case PDF"""
-        try:
-            pdf_filename = f'case_reports/case_{case_id}.pdf'
-            
-            # Create temporary PDF for new content
-            temp_pdf = f'case_reports/temp_{case_id}.pdf'
-            doc = SimpleDocTemplate(temp_pdf, pagesize=letter)
-            styles = getSampleStyleSheet()
-            
-            story = []
-            
-            # Add conversation entry
-            story.append(Paragraph(f"Speaker: {conversation.speaker}", styles['Heading4']))
-            story.append(Paragraph(f"Input: {conversation.input}", styles['Normal']))
-            story.append(Paragraph(f"Context: {conversation.context}", styles['Normal']))
-            story.append(Paragraph(f"Score: {conversation.score}", styles['Normal']))
-            story.append(Spacer(1, 12))
-            
-            # Build PDF
-            doc.build(story)
-            
-            # Merge with existing PDF
-            from PyPDF2 import PdfMerger, PdfReader
-            merger = PdfMerger()
-            
-            # Add original PDF if it exists
-            if os.path.exists(pdf_filename):
-                merger.append(PdfReader(open(pdf_filename, 'rb')))
-            
-            # Add new content
-            merger.append(PdfReader(open(temp_pdf, 'rb')))
-            
-            # Write final PDF
-            with open(pdf_filename, 'wb') as output_file:
-                merger.write(output_file)
-            
-            # Clean up temp file
-            os.remove(temp_pdf)
-            
-        except Exception as e:
-            print(f"Error appending to PDF: {e}")
-
     async def process_input(self, request: ProcessInputRequest):
         if request.turn_type != self.current_turn:
             raise HTTPException(status_code=400, detail="Not your turn to speak")
@@ -286,31 +342,32 @@ class Judge:
                 if not request.input_text:
                     raise HTTPException(status_code=400, detail="Human input required")
                 
-                human_lawyer = HumanLawyer()
-                response = human_lawyer.assistant.ask(request.input_text)
-                score = self.analyze_response(response[1], is_human=True)
+                human_lawyer = HumanLawyer(request.case_id)
+                response = human_lawyer.ask(request.input_text)
+                score = self.analyze_response(response.input, is_human=True)
                 
                 # Create human's response
                 human_response = LawyerContext(
                     input=request.input_text,
-                    context=response[1],
+                    context=response.context,
                     speaker="human",
                     score=score
                 )
                 
                 # Add to conversation and PDF
                 self.conversations.append(human_response)
-                self.append_to_case_pdf(request.case_id, human_response)
+                #self.append_to_case_pdf(request.case_id, human_response)
                 
                 # Generate and add judge's commentary
                 judge_comment = self.generate_judge_comment(human_response)
+                print(judge_comment)
                 self.conversations.append(judge_comment)
-                self.append_to_case_pdf(request.case_id, judge_comment)
+                #self.append_to_case_pdf(request.case_id, judge_comment) # have to return this as the response as well for the same in this case along with what is the thing for the same for the same so in the turn response schema the judge's comment should also be returned 
 
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
-                if score_difference >= 1:
-                    return self.end_case(request.case_id)
+                if score_difference >= 1 or "@restcase" in request.input_text.lower() or "@endcase" in request.input_text.lower():
+                    return self.end_case(request.case_id,human_response)
                 
                 self.current_turn = "ai"
                 return TurnResponse(
@@ -318,12 +375,13 @@ class Judge:
                     case_status="open",
                     current_response=human_response,
                     human_score=self.human_score,
-                    ai_score=self.ai_score
+                    ai_score=self.ai_score,
+                    judge_comment=judge_comment.input
                 )
                 
             else:  # AI turn
-                ai_lawyer = AILawyer()
-                ai_response_data = ai_lawyer.respond("Present your argument to the court")
+                ai_lawyer = AILawyer(request.case_id)
+                ai_response_data = ai_lawyer.respond(request.input_text) # or else let it be self.conversations[-2]
                 score = self.analyze_response(ai_response_data["context"], is_human=False)
                 
                 # Create AI's response
@@ -336,17 +394,19 @@ class Judge:
                 
                 # Add to conversation and PDF
                 self.conversations.append(ai_response)
-                self.append_to_case_pdf(request.case_id, ai_response)
+                #self.append_to_case_pdf(request.case_id, ai_response)
                 
                 # Generate and add judge's commentary
                 judge_comment = self.generate_judge_comment(ai_response)
+                print(judge_comment)
                 self.conversations.append(judge_comment)
-                self.append_to_case_pdf(request.case_id, judge_comment)
+               # self.append_to_case_pdf(request.case_id, judge_comment)
 
                 # Check scores
                 score_difference = abs(self.human_score - self.ai_score)
                 if score_difference >= 1:
-                    return self.end_case(request.case_id)
+                    return self.end_case(request.case_id,ai_response)
+
                 
                 self.current_turn = "human"
                 return TurnResponse(
@@ -354,7 +414,8 @@ class Judge:
                     case_status="open",
                     current_response=ai_response,
                     human_score=self.human_score,
-                    ai_score=self.ai_score
+                    ai_score=self.ai_score,
+                    judge_comment=judge_comment.input
                 )
 
         except Exception as e:
@@ -364,7 +425,7 @@ class Judge:
                 detail=f"Error processing input: {str(e)}"
             )
 
-    def end_case(self, case_id: str):
+    def end_case(self, case_id: str,last_response: LawyerContext)-> TurnResponse:
         """Helper method to handle case ending"""
         winner = "Human Lawyer" if self.human_score > self.ai_score else "AI Lawyer"
         score_difference = abs(self.human_score - self.ai_score)
@@ -372,27 +433,23 @@ class Judge:
         closing_statement = self.generate_closing_statement(winner, score_difference)
         self.conversations.append(closing_statement)
 
-        # Create PDF file data to upload
-        pdf_data = BytesIO()
-        with open(f"case_reports/case_{case_id}.pdf", 'rb') as pdf_file:
-            pdf_data.write(pdf_file.read())
-        pdf_data.seek(0)
-        
-        files = {
-            'file': ('case_record.pdf', pdf_data, 'application/pdf')
+        case = redis_client.get_case(case_id)
+        case["case_status"] = "Closed"
+        conversationdict = {
+            "conversations": [conversation.dict() for conversation in self.conversations]
         }
-        
-        response = requests.post(
-            "https://api.pinata.cloud/pinning/pinFileToIPFS",
-            files=files,
-            headers={
-                'pinata_api_key': settings.pinata_api_key,
-                'pinata_secret_api_key': settings.pinata_secret_api_key
-            }
-        )
-        res = response.json()
-
-        ipfs_hash = f"https://ipfs.io/ipfs/{res['IpfsHash']}"
+        case_winner = {
+            "winner" : winner
+        }
+        case_scores = {
+        "human_score": str(self.human_score),
+        "ai_score": str(self.ai_score),
+        "score_difference": str(score_difference)
+    }
+        case.update(conversationdict)
+        case.update(case_winner)
+        case.update(case_scores)
+        redis_client.update_case(case_id, case)
 
         return TurnResponse(
             next_turn="none",
@@ -402,7 +459,7 @@ class Judge:
             current_response=closing_statement,
             human_score=self.human_score,
             ai_score=self.ai_score,
-            ipfs_hash=ipfs_hash
+            last_response = last_response
         )
       
 
@@ -411,7 +468,7 @@ class Judge:
         prompt = (
             "You are an experienced judge presiding over a case. "
             "Provide a brief comment on the last argument presented. "
-            f"The {last_response.speaker} lawyer argued: {last_response.context}\n"
+            f"The {last_response.speaker} lawyer argued: {last_response.input}\n"
             "Give your reaction and direct the next lawyer to proceed."
         )
         
@@ -449,7 +506,7 @@ class Judge:
             response = run.content
             
             return LawyerContext(
-                input=response.choices[0].message.content,
+                input=response,
                 context="The court has reached a decision.",
                 speaker="judge",
                 score=0.0
@@ -462,7 +519,3 @@ class Judge:
                 speaker="judge",
                 score=0.0
             )
-
-
-
-#later will have to add a function which will basically take the covnersation and take the lists and then put it onto case pdf using the report pdf library function

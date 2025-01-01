@@ -1,13 +1,13 @@
 import json
+import os
 from redis import Redis
 from ..config import settings
 from typing import List
 
 class RedisClient:
     def __init__(self):
-        self.redis = Redis(
-            host=settings.redis_host,
-            port=settings.redis_port,
+        self.redis = Redis.from_url(
+            url=os.getenv("REDIS_URL"),
             decode_responses=True
         )
 
@@ -23,6 +23,14 @@ class RedisClient:
     def update_case(self, case_id: str, case_data: dict):
         self.redis.set(f"case:{case_id}", json.dumps(case_data))
         return case_data
+
+    def delete_case(self, case_id: str):
+        """Deletes a case from Redis"""
+        # Remove case data
+        self.redis.delete(f"case:{case_id}")
+        # Remove case ID from the set of cases
+        self.redis.srem("cases", case_id)
+        return True
 
     def list_cases(self):
         case_ids = self.redis.smembers("cases")

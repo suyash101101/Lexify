@@ -1,77 +1,96 @@
-import { createTheme } from '@mui/material/styles';
+const colors = {
+  primary: {
+    main: '#000000', // Pure Black
+    light: '#333333', // Light Black
+  },
+  accent: {
+    white: '#FFFFFF', // Pure White
+    gray: '#F5F5F5', // Light Gray
+  },
+  feedback: {
+    success: '#4CAF50',
+    warning: '#FFC107',
+    error: '#DC2626',
+  },
+};
 
-export const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#38bdf8', // sky-400
-      light: '#7dd3fc', // sky-300
-      dark: '#0ea5e9', // sky-500
-    },
-    secondary: {
-      main: '#60a5fa', // blue-400
-      light: '#93c5fd', // blue-300
-      dark: '#3b82f6', // blue-500
-    },
-    background: {
-      default: '#f0f9ff', // sky-50
-      paper: 'rgba(255, 255, 255, 0.8)',
-    },
-    text: {
-      primary: '#0369a1', // sky-700
-      secondary: '#38bdf8', // sky-400
-    }
+const spacing = {
+  xs: '4px',
+  sm: '8px',
+  md: '16px',
+  lg: '24px',
+  xl: '48px',
+  '2xl': '64px',
+};
+
+const borderRadius = {
+  sm: '8px',
+  md: '12px',
+  lg: '16px',
+  full: '9999px',
+};
+
+const shadows = {
+  sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+  md: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+  lg: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+};
+
+const breakpoints = {
+  sm: '640px',
+  md: '768px',
+  lg: '1024px',
+  xl: '1280px',
+};
+
+const typography = {
+  fonts: {
+    display: 'Poppins, sans-serif',
+    body: 'Inter, sans-serif',
   },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontSize: '2.5rem',
-      fontWeight: 700,
-      background: 'linear-gradient(45deg, #6366f1, #8b5cf6)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-    },
-    h2: {
-      fontSize: '2rem',
-      fontWeight: 600,
-    },
-    h3: {
-      fontSize: '1.75rem',
-      fontWeight: 600,
-    },
-    h4: {
-      fontSize: '1.5rem',
-      fontWeight: 600,
-    },
-    h5: {
-      fontSize: '1.25rem',
-      fontWeight: 600,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 600,
-    },
+  sizes: {
+    xs: '0.75rem',
+    sm: '0.875rem',
+    base: '1rem',
+    lg: '1.125rem',
+    xl: '1.25rem',
+    '2xl': '1.5rem',
+    '3xl': '1.875rem',
+    '4xl': '2.25rem',
+    '5xl': '3rem',
+    '6xl': '3.75rem',
   },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          borderRadius: '12px',
-          background: 'rgba(56, 189, 248, 0.1)',
-          color: '#38bdf8',
-          '&:hover': {
-            background: 'rgba(56, 189, 248, 0.2)',
-          },
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(12px)',
-        },
-      },
-    },
+  lineHeights: {
+    none: '1',
+    tight: '1.25',
+    snug: '1.375',
+    normal: '1.5',
+    relaxed: '1.625',
+    loose: '2',
   },
-});
+  fontWeights: {
+    normal: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  },
+};
+
+const transitions = {
+  duration: {
+    fast: '150ms',
+    normal: '200ms',
+    slow: '300ms',
+  },
+  timing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+};
+
+export const theme = {
+  colors,
+  spacing,
+  borderRadius,
+  shadows,
+  breakpoints,
+  typography,
+  transitions,
+};

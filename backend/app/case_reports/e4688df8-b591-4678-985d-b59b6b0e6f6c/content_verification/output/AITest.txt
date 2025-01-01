@@ -1,0 +1,5 @@
+The text is likely AI-generated.
+AI-generated chunks: 1
+Human-written chunks: 0
+Total chunks: 1
+AI percentage: 100.00%
