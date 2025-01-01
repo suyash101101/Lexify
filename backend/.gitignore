@@ -2,4 +2,6 @@
 venv
 .DS_Store
 __pycache__
+awscli-bundle
+awscli-bundle.zip
 case_reports
