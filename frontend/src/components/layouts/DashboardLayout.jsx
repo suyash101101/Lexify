@@ -11,6 +11,7 @@ import {
   X,
   User
 } from 'lucide-react';
+import { GlobalConsultingWidget } from '../Consulting';
 
 const SidebarLink = ({ to, icon: Icon, children, onNavigate }) => {
   const location = useLocation();
@@ -178,6 +179,9 @@ const DashboardLayout = ({ children }) => {
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+
+      {/* Global Consulting Widget */}
+      <GlobalConsultingWidget />
     </div>
   );
 };

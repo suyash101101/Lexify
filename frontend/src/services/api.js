@@ -48,5 +48,16 @@ export const api = {
       console.error('Error fetching case details:', error);
       throw error;
     }
+  },
+
+  getCaseDetailsById : async(case_id)=>{
+    try{
+      const response = await axios.get(`${API_BASE_URL}/cases/${case_id}`);
+      return response.data;
+    }catch(error){
+      console.error('Error fetching case details:', error);
+      throw error;
+    }
   }
+
 };

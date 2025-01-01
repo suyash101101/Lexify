@@ -4,6 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global selection color */
+::selection {
+  background-color: black;
+  color: white;
+}
+
+::-moz-selection {
+  background-color: black;
+  color: white;
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;

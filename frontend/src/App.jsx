@@ -5,6 +5,7 @@ import Navigation from './components/Navigation';
 import Landing from './components/Landing';
 import Cases from './components/Cases';
 import CreateCase from './components/CreateCase';
+import EditCase from './components/EditCase';
 import Profile from './components/Profile';
 import DashboardLayout from './components/layouts/DashboardLayout';
 import ContactUs from './components/ContactUs';
@@ -64,6 +65,11 @@ const App = () => {
         <Route path="/cases/create" element={
           <PrivateRoute>
             <CreateCase />
+          </PrivateRoute>
+        } />
+        <Route path="/cases/:caseId/edit" element={
+          <PrivateRoute>
+            <EditCase />
           </PrivateRoute>
         } />
         <Route path="/contactus" element={
