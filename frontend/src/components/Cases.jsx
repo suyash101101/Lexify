@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import axios from 'axios';
 import { 
   Plus, 
   Scale, 
@@ -18,6 +19,18 @@ import { Button } from './shared/Button';
 import { Card } from './shared/Card';
 import { Loading } from './shared/Loading';
 import { api } from '../services/api';
+
+// Create axios instance with default config
+const axiosInstance = axios.create({
+  baseURL: `${import.meta.env.VITE_API_URL}`,
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  maxRedirects: 5, // Handle redirects automatically
+  validateStatus: function (status) {
+    return status >= 200 && status < 500; // Accept all responses to handle them manually
+  }
+});
 
 const CaseDetailsModal = ({ isOpen, onClose, caseDetails }) => {
   if (!isOpen) return null;
@@ -154,17 +167,17 @@ const CaseCard = ({ legalCase, onDelete }) => {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cases/${legalCase.case_id}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
+      const response = await axiosInstance.delete(`/cases/${legalCase.case_id}`);
+      if (response.status === 200) {
         onDelete(legalCase.case_id);
       } else {
-        throw new Error('Failed to delete case');
+        throw new Error(`Failed to delete case: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error deleting case:', error);
+      console.error('Error deleting case:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
     }
     setShowDeleteModal(false);
   };
@@ -277,15 +290,11 @@ const Cases = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchCases();
-  }, [user]);
-
   const fetchCases = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/cases`);
-      if (response.ok) {
-        const allCases = await response.json();
+      const response = await axiosInstance.get('/cases');
+      if (response.status === 200) {
+        const allCases = response.data;
         const userCases = allCases.filter(
           legalCase => legalCase.lawyer1_address === user.sub
         );
@@ -293,13 +302,22 @@ const Cases = () => {
           new Date(b.created_at) - new Date(a.created_at)
         );
         setCases(sortedCases);
+      } else {
+        console.error('Failed to fetch cases:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching cases:', error);
+      console.error('Error fetching cases:', error.message);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchCases();
+  }, [user]);
 
   const handleCaseDelete = (caseId) => {
     setCases(cases.filter(c => c.case_id !== caseId));
