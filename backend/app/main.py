@@ -18,7 +18,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Hello Lexions!"}
+    return {"message": "Hello Lexions v1!"}
 
 # Include routers
 app.include_router(cases_router, prefix="/cases", tags=["cases"])
