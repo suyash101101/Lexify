@@ -1,0 +1,140 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:eu-north-1:302263077826:task-definition/HelloLexify:1",
+    "containerDefinitions": [
+        {
+            "name": "lexify-backend",
+            "image": "302263077826.dkr.ecr.eu-north-1.amazonaws.com/lexify-backend:latest",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "name": "lexify-backend-80-tcp",
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "REDIS_HOST",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_HOST
+                },
+                {
+                    "name": "REDIS_PORT",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_PORT
+                },
+                {
+                    "name": "GALADRIEL_BASE_URL",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/GALADRIEL_BASE_URL
+                },
+                {
+                    "name": "PINATA_API_KEY",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/PINATA_API_KEY
+                },
+                {
+                    "name": "DATA_DIR",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/DATA_DIR
+                },
+                {
+                    "name": "GALADRIEL_API_KEY",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/GALADRIEL_API_KEY
+                },
+                {
+                    "name": "PINATA_SECRET_API_KEY",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/PINATA_SECRET_API_KEY
+                },
+                {
+                    "name": "OPENAI_API_KEY",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/OPENAI_API_KEY
+                },
+                {
+                    "name": "LLM_MODEL_NAME",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/LLM_MODEL_NAME
+                },
+                {
+                    "name": "GOOGLE_API_KEY",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/GOOGLE_API_KEY
+                },
+                {
+                    "name": "REDIS_URL",
+                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_URL
+                }
+            ],
+            "environmentFiles": [],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "ulimits": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/HelloLexify",
+                    "mode": "non-blocking",
+                    "awslogs-create-group": "true",
+                    "max-buffer-size": "25m",
+                    "awslogs-region": "eu-north-1",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "HelloLexify",
+    "taskRoleArn": "arn:aws:iam::302263077826:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::302263077826:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "revision": 1,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.28"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "6144",
+    "runtimePlatform": {
+        "cpuArchitecture": "ARM64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "registeredAt": "2024-12-31T15:13:08.805Z",
+    "registeredBy": "arn:aws:iam::302263077826:root",
+    "enableFaultInjection": false,
+    "tags": []
+}
