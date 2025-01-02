@@ -1,5 +1,5 @@
 {
-    "taskDefinitionArn": "arn:aws:ecs:eu-north-1:302263077826:task-definition/HelloLexify:1",
+    "taskDefinitionArn": "arn:aws:ecs:eu-north-1:302263077826:task-definition/HelloLexify:2",
     "containerDefinitions": [
         {
             "name": "lexify-backend",
@@ -15,55 +15,56 @@
                 }
             ],
             "essential": true,
-            "environment": [
-                {
-                    "name": "REDIS_HOST",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_HOST
-                },
-                {
-                    "name": "REDIS_PORT",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_PORT
-                },
-                {
-                    "name": "GALADRIEL_BASE_URL",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/GALADRIEL_BASE_URL
-                },
-                {
-                    "name": "PINATA_API_KEY",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/PINATA_API_KEY
-                },
-                {
-                    "name": "DATA_DIR",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/DATA_DIR
-                },
-                {
-                    "name": "GALADRIEL_API_KEY",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/GALADRIEL_API_KEY
-                },
-                {
-                    "name": "PINATA_SECRET_API_KEY",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/PINATA_SECRET_API_KEY
-                },
-                {
-                    "name": "OPENAI_API_KEY",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/OPENAI_API_KEY
-                },
-                {
-                    "name": "LLM_MODEL_NAME",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/LLM_MODEL_NAME
-                },
-                {
-                    "name": "GOOGLE_API_KEY",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/GOOGLE_API_KEY
-                },
-                {
-                    "name": "REDIS_URL",
-                    "value": arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_URL
-                }
-            ],
+            "environment": [],
             "environmentFiles": [],
             "mountPoints": [],
             "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "DATA_DIR",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/DATA_DIR"
+                },
+                {
+                    "name": "GALADRIEL_API_KEY",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/GALADRIEL_API_KEY"
+                },
+                {
+                    "name": "GALADRIEL_BASE_URL",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/GALADRIEL_BASE_URL"
+                },
+                {
+                    "name": "GOOGLE_API_KEY",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/GOOGLE_API_KEY"
+                },
+                {
+                    "name": "LLM_MODEL_NAME",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/LLM_MODEL_NAME"
+                },
+                {
+                    "name": "OPENAI_API_KEY",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/OPENAI_API_KEY"
+                },
+                {
+                    "name": "PINATA_API_KEY",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/PINATA_API_KEY"
+                },
+                {
+                    "name": "PINATA_SECRET_API_KEY",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/PINATA_SECRET_API_KEY"
+                },
+                {
+                    "name": "REDIS_HOST",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_HOST"
+                },
+                {
+                    "name": "REDIS_PORT",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_PORT"
+                },
+                {
+                    "name": "REDIS_URL",
+                    "valueFrom": "arn:aws:ssm:eu-north-1:302263077826:parameter/REDIS_URL"
+                }
+            ],
             "ulimits": [],
             "logConfiguration": {
                 "logDriver": "awslogs",
@@ -84,7 +85,7 @@
     "taskRoleArn": "arn:aws:iam::302263077826:role/ecsTaskExecutionRole",
     "executionRoleArn": "arn:aws:iam::302263077826:role/ecsTaskExecutionRole",
     "networkMode": "awsvpc",
-    "revision": 1,
+    "revision": 2,
     "volumes": [],
     "status": "ACTIVE",
     "requiresAttributes": [
@@ -110,6 +111,9 @@
             "name": "ecs.capability.execution-role-ecr-pull"
         },
         {
+            "name": "ecs.capability.secrets.ssm.environment-variables"
+        },
+        {
             "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
         },
         {
@@ -133,7 +137,7 @@
         "cpuArchitecture": "ARM64",
         "operatingSystemFamily": "LINUX"
     },
-    "registeredAt": "2024-12-31T15:13:08.805Z",
+    "registeredAt": "2025-01-02T06:24:06.312Z",
     "registeredBy": "arn:aws:iam::302263077826:root",
     "enableFaultInjection": false,
     "tags": []
