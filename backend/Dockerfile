@@ -28,4 +28,4 @@ RUN mkdir -p app/consultancy/data app/case_reports
 
 
 # Command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "443", "--forwarded-allow-ips", "*"]
