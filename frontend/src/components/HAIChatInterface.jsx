@@ -9,11 +9,13 @@ import { formatMarkdownResponse } from '../utils/formatMarkdown.jsx';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
 import { Gavel } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 
 const HAIChatInterface = () => {
-  const case_id = useParams()
-  const caseId = case_id.case_id
+  const case_id = useParams();
+  const caseId = case_id.case_id;
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [gameState, setGameState] = useState(null);
@@ -150,9 +152,22 @@ const HAIChatInterface = () => {
     }
   },[gameState?.case_status])
 
-  const formatMessage = (content) => {
-    return content.match(/\d+\./) ? formatMarkdownResponse(content) : <p>{content}</p>;
-  };
+  const formatMessage = (content) => (
+    <article className="prose prose-sm max-w-none
+      prose-headings:font-semibold prose-headings:text-inherit
+      prose-p:text-inherit prose-p:leading-relaxed
+      prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4
+      prose-ol:my-2 prose-ol:pl-4
+      prose-li:my-0.5
+      prose-strong:font-semibold prose-strong:text-inherit
+      prose-blockquote:border-l-4 prose-blockquote:border-current/20
+      prose-blockquote:pl-4 prose-blockquote:italic"
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </article>
+  );
 
   const renderMessage = (msg, idx) => (
     <motion.div
@@ -297,7 +312,7 @@ const HAIChatInterface = () => {
                       )}
                     </div>
                     <div className={`text-base ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
-                      {msg.content}
+                      {formatMessage(msg.content)}
                     </div>
                     {msg.context && (
                       <motion.div 
@@ -411,11 +426,7 @@ const HAIChatInterface = () => {
       <div>
         {(gameState?.case_status === 'closed' || gameState?.case_status === 'Closed') && (
           <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white/70 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg"
-          >
-            <Award className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+          initial={{ opacity: 0, y: 20 }}          animate={{ opacity: 1, y: 0 }}          className="bg-white/70 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg"          >            <Award className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
             <h3 className="text-2xl font-bold mb-2 text-gray-800">Case Closed</h3>
             <p className="text-lg mb-2 text-gray-700">Winner: {gameState.winner}</p>
             <p className="text-sm text-gray-600 mb-4">

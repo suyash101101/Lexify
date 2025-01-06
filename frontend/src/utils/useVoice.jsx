@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export function useVoice() {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -60,21 +60,29 @@ export function useVoice() {
 
 export function useSpeechRecognition() {
   const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
   
   useEffect(() => {
+    // Create recognition instance once
+    recognitionRef.current = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognitionRef.current.continuous = true;
+    recognitionRef.current.interimResults = true;
+
     return () => {
       if (isListening) {
-        stopListening();
+        recognitionRef.current?.stop();
       }
     };
   }, []);
 
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  const startListening = useCallback((onResult) => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
 
-  const startListening = (onResult) => {
-    recognition.onresult = (event) => {
+    recognitionRef.current.onresult = (event) => {
       const transcript = Array.from(event.results)
         .map(result => result[0])
         .map(result => result.transcript)
@@ -83,18 +91,27 @@ export function useSpeechRecognition() {
       onResult(transcript);
     };
 
-    recognition.onend = () => {
+    recognitionRef.current.onend = () => {
       setIsListening(false);
     };
 
-    recognition.start();
-    setIsListening(true);
-  };
+    recognitionRef.current.onerror = () => {
+      setIsListening(false);
+    };
 
-  const stopListening = () => {
-    recognition.stop();
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+    } catch (error) {
+      console.error('Speech recognition error:', error);
+      setIsListening(false);
+    }
+  }, [isListening]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
     setIsListening(false);
-  };
+  }, []);
 
   return {
     startListening,
