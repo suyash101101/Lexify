@@ -169,6 +169,23 @@ const HAIChatInterface = () => {
     </article>
   );
 
+  const formatMarkdown = (content) => (
+    <article className="prose prose-sm max-w-none
+      prose-headings:font-semibold prose-headings:text-inherit
+      prose-p:text-inherit prose-p:leading-relaxed
+      prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4
+      prose-ol:my-2 prose-ol:pl-4
+      prose-li:my-0.5
+      prose-strong:font-semibold prose-strong:text-inherit
+      prose-blockquote:border-l-4 prose-blockquote:border-current/20
+      prose-blockquote:pl-4 prose-blockquote:italic"
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </article>
+  );
+
   const renderMessage = (msg, idx) => (
     <motion.div
       key={idx}
@@ -312,7 +329,7 @@ const HAIChatInterface = () => {
                       )}
                     </div>
                     <div className={`text-base ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
-                      {formatMessage(msg.content)}
+                      {formatMarkdown(msg.content)}
                     </div>
                     {msg.context && (
                       <motion.div 
@@ -321,9 +338,9 @@ const HAIChatInterface = () => {
                         className="mt-3 pt-3 border-t border-gray-200/20"
                       >
                         <p className="font-medium mb-1 text-sm">Supporting Context</p>
-                        <p className={`text-sm ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {msg.context}
-                        </p>
+                        <div className={`text-sm ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {formatMarkdown(msg.context)}
+                        </div>
                       </motion.div>
                     )}
                     {msg.score !== undefined && (
