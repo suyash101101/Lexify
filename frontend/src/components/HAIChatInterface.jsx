@@ -1,32 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { useHAIChat } from '../hooks/useHAIChat';
 import { useAuth0 } from '@auth0/auth0-react';
-import { api } from '../services/api';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, AlertCircle, Award, MessageCircle, Mic } from 'lucide-react';
-import { formatMarkdownResponse } from '../utils/formatMarkdown.jsx';
+import ReactMarkdown from 'react-markdown';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
 import { Gavel } from 'lucide-react';
 
-
 const HAIChatInterface = () => {
-  const case_id = useParams()
-  const caseId = case_id.case_id
-  const [messages, setMessages] = useState([]);
+  const { case_id } = useParams();
   const [input, setInput] = useState('');
-  const [gameState, setGameState] = useState(null);
-  const [error, setError] = useState(null);
-  const [isCourtSpeaking, setIsCourtSpeaking] = useState(false);
   const messagesEndRef = useRef(null);
   const { user } = useAuth0();
   const { startListening, stopListening, isListening } = useSpeechRecognition();
   const endRef = useRef(null);
 
-  const { sendMessage, lastMessage, connectionStatus } = useWebSocket(
-    `${import.meta.env.VITE_WS_URL}/ws/hai/${caseId}/${user?.sub}`
-  );
+  const {
+    messages,
+    gameState,
+    isLoading,
+    error: chatError,
+    sendMessage
+  } = useHAIChat(case_id);
+
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user?.sub) {
@@ -36,98 +35,24 @@ const HAIChatInterface = () => {
   }, [user]);
 
   useEffect(() => {
-    if (lastMessage) {
-      try {
-        const data = JSON.parse(lastMessage);
-        
-        if (data.type === "error") {
-          setError(data.message);
-          return;
-        }
-        
-        if (data.type === "state_update" || data.type === "turn_update") {
-          const state = data.data; //getting the whole turn response from hai.py
-        //   TurnResponse(
-        //     next_turn=self.current_turn,
-        //     case_status="open",
-        //     current_response=first_directive,
-        //     human_score=0.0,
-        //     ai_score=0.0
-        //      last_response = last_response (basically only for handling the winner case)
-        // )
-        //this contains the first directive which is the lawyer context 
-      //   LawyerContext(
-      //     input=f"The {self.current_turn} lawyer will present first.",
-      //     context="Please present your opening argument.",
-      //     speaker="judge",
-      //     score=0.0
-      // )
-          console.log("game state update: ",state)
-          setGameState(state);
-
-          if(state.case_status === 'closed' && state.last_response) {
-            setMessages(prev => [...prev, {
-              speaker: state.last_response.speaker,
-              content: state.last_response.input,
-              context: state.last_response.context,
-              score: state.last_response.score
-            }]);
-          }
-          
-          if (state.current_response) {
-            setMessages(prev => [...prev, {
-              speaker: state.current_response.speaker,
-              content: state.current_response.input,
-              context: state.current_response.context,
-              score: state.current_response.score
-            }]);
-          }
-
-          if (state.judge_comment) {
-            setMessages(prev => [...prev, {
-              speaker: 'judge',
-              content: state.judge_comment,
-              isComment: true
-            }]);
-          }
-
-          setIsCourtSpeaking(
-            (state.next_turn === 'ai') || 
-            (state.current_response.speaker === 'judge' && state.next_turn !== 'human')
-          );
-        }
-      } catch (e) {
-        console.error("Error processing message:", e);
-        setError("Error processing message");
-      }
+    if (chatError) {
+      setError(chatError);
     }
-  }, [lastMessage]);
-
-  useEffect(() => {
-    const startSimulation = async () => {
-      try {
-        const response = await api.startHAISimulation(caseId);
-        setGameState(response);
-      } catch (e) {
-        console.error("Error starting simulation:", e);
-        setError("Failed to start simulation");
-      }
-    };
-
-    startSimulation();
-  }, [caseId]);
+  }, [chatError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
     
-    sendMessage(JSON.stringify({
-      type: 'human_input',
-      content: input //this is what the user types in the input box
-    }));
+    const humanMessage = {
+      content: input.trim(),
+      context: "",
+      speaker: "human",
+      score: 0
+    };
     
     setInput('');
-    setIsCourtSpeaking(true);
+    await sendMessage(humanMessage.content);
   };
 
   const handleVoiceInput = () => {
@@ -144,76 +69,107 @@ const HAIChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  useEffect(()=>{
-    if(gameState?.case_status === 'closed'){
+  useEffect(() => {
+    if (gameState?.case_status === 'closed') {
       endRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  },[gameState?.case_status])
+  }, [gameState?.case_status]);
 
-  const formatMessage = (content) => {
-    return content.match(/\d+\./) ? formatMarkdownResponse(content) : <p>{content}</p>;
-  };
+  const renderMessage = (msg, idx) => {
+    // Ensure we have a string for ReactMarkdown
+    const getMessageContent = (message) => {
+      if (!message) return '';
+      if (typeof message === 'string') return message;
+      if (typeof message.content === 'string') return message.content;
+      if (typeof message.input === 'string') return message.input;
+      return JSON.stringify(message);
+    };
 
-  const renderMessage = (msg, idx) => (
-    <motion.div
-      key={idx}
-      initial={{ x: msg.speaker === 'human' ? 20 : -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 500, damping: 50 }}
-      className={`mb-4 ${
-        msg.speaker === 'human' ? 'ml-auto' : 'mr-auto'
-      } max-w-[80%]`}
-    >
-      <div className={`rounded-xl p-4 ${
-        msg.speaker === 'human' 
-          ? 'bg-blue-50 text-blue-800 ml-auto' 
-          : msg.speaker === 'judge' 
-          ? msg.isComment
-            ? 'bg-purple-50/80 text-purple-800 border-l-4 border-purple-300'
-            : 'bg-purple-50 text-purple-800'
-          : 'bg-green-50 text-green-800'
-      }`}>
-        <div className="font-medium text-sm mb-1 flex justify-between items-center">
-          <span>
-            {msg.speaker === 'ai' ? 'AI Lawyer' : 
-             msg.speaker === 'human' ? 'You' : 
-             msg.isComment ? 'Judge\'s Comment' : 'Judge'}
-          </span>
-          {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
-            <VoiceButton text={msg.content} />
+    const messageContent = getMessageContent(msg.content || msg.input);
+    const contextContent = getMessageContent(msg.context);
+
+    return (
+      <motion.div
+        key={idx}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className={`flex ${msg.speaker === 'human' ? 'justify-end' : 'justify-start'} mb-6`}
+      >
+        <div className={`max-w-[85%] ${
+          msg.speaker === 'human' 
+            ? 'bg-black text-white' 
+            : msg.speaker === 'judge' 
+            ? 'bg-gray-100 border-l-4 border-yellow-600'
+            : 'bg-gray-50'
+        } rounded-xl p-4 shadow-md`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center">
+              {msg.speaker === 'judge' && (
+                <Gavel className="w-4 h-4 mr-2 text-yellow-600" />
+              )}
+              <span className={`text-sm font-medium ${
+                msg.speaker === 'judge' ? 'text-yellow-700' : ''
+              }`}>
+                {msg.speaker === 'ai' ? 'AI Lawyer' : 
+                 msg.speaker === 'human' ? 'You' : 
+                 'The Honorable Court'}
+              </span>
+            </div>
+            {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
+              <VoiceButton text={messageContent} />
+            )}
+          </div>
+          <div className={`text-base prose prose-sm max-w-none ${
+            msg.speaker === 'human' 
+              ? 'text-white prose-invert' 
+              : msg.speaker === 'judge'
+              ? 'text-gray-800 font-serif italic'
+              : 'text-gray-800'
+          }`}>
+            <ReactMarkdown>{messageContent}</ReactMarkdown>
+          </div>
+          {msg.context && (
+            <motion.div 
+              initial={{ height: 0 }}
+              animate={{ height: "auto" }}
+              className={`mt-3 pt-3 border-t ${
+                msg.speaker === 'human' 
+                  ? 'border-gray-200/20' 
+                  : msg.speaker === 'judge'
+                  ? 'border-yellow-200'
+                  : 'border-gray-200'
+              }`}
+            >
+              <p className={`font-medium mb-1 text-sm ${
+                msg.speaker === 'judge' ? 'text-yellow-700' : ''
+              }`}>
+                {msg.speaker === 'judge' ? 'Court Direction' : 'Supporting Context'}
+              </p>
+              <div className={`text-sm prose prose-sm max-w-none ${
+                msg.speaker === 'human' 
+                  ? 'text-gray-300 prose-invert' 
+                  : msg.speaker === 'judge'
+                  ? 'text-gray-700'
+                  : 'text-gray-600'
+              }`}>
+                <ReactMarkdown>{contextContent}</ReactMarkdown>
+              </div>
+            </motion.div>
+          )}
+          {msg.score !== undefined && msg.speaker !== 'judge' && (
+            <div className={`mt-2 text-xs ${
+              msg.speaker === 'human' 
+                ? 'text-gray-300' 
+                : 'text-gray-500'
+            }`}>
+              Score Impact: {msg.score > 0 ? '+' : ''}{typeof msg.score === 'number' ? msg.score.toFixed(2) : msg.score}
+            </div>
           )}
         </div>
-        <div className="text-gray-700">
-          {msg.content}
-        </div>
-        {msg.context && (
-          <motion.div 
-            initial={{ height: 0 }}
-            animate={{ height: "auto" }}
-            className="mt-2 text-sm text-gray-600 border-t border-gray-200 pt-2"
-          >
-            <strong>Supporting Context:</strong>
-            <p>{msg.context}</p>
-          </motion.div>
-        )}
-        {msg.score !== undefined && (
-          <div className="mt-2 text-sm text-gray-600">
-            Score Impact: {msg.score > 0 ? '+' : ''}{msg.score.toFixed(2)}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-
-  // Add cleanup effect
-  useEffect(() => {
-    return () => {
-      window.speechSynthesis.cancel();
-      if (isListening) {
-        stopListening();
-      }
-    };
-  }, [isListening]);
+      </motion.div>
+    );
+  };
 
   return (
     <motion.div 
@@ -232,7 +188,7 @@ const HAIChatInterface = () => {
         </motion.div>
       )}
 
-      {/* Score Bar - Fixed at top */}
+      {/* Score Bar */}
       <div className="sticky top-0 z-40 bg-white border-b border-black/5">
         <div className="max-w-3xl mx-auto px-4 py-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -242,7 +198,7 @@ const HAIChatInterface = () => {
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-black">HAI Court</h1>
-                <p className="text-xs text-gray-500">Case #{caseId}</p>
+                <p className="text-xs text-gray-500">Case #{case_id}</p>
               </div>
             </div>
             <div className="flex items-center gap-4 sm:ml-auto text-sm">
@@ -269,59 +225,10 @@ const HAIChatInterface = () => {
         <div className="max-w-3xl mx-auto px-4">
           <div className="space-y-6 py-4">
             <AnimatePresence>
-              {messages.map((msg, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={`flex ${msg.speaker === 'human' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[85%] ${
-                    msg.speaker === 'human' 
-                      ? 'bg-black text-white' 
-                      : msg.speaker === 'judge' 
-                      ? msg.isComment
-                        ? 'bg-gray-50 border-l-2 border-gray-900'
-                        : 'bg-gray-50'
-                      : 'bg-gray-50'
-                  } rounded-xl p-4 shadow-sm`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">
-                        {msg.speaker === 'ai' ? 'AI Lawyer' : 
-                         msg.speaker === 'human' ? 'You' : 
-                         msg.isComment ? 'Judge\'s Comment' : 'Judge'}
-                      </span>
-                      {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
-                        <VoiceButton text={msg.content} />
-                      )}
-                    </div>
-                    <div className={`text-base ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
-                      {msg.content}
-                    </div>
-                    {msg.context && (
-                      <motion.div 
-                        initial={{ height: 0 }}
-                        animate={{ height: "auto" }}
-                        className="mt-3 pt-3 border-t border-gray-200/20"
-                      >
-                        <p className="font-medium mb-1 text-sm">Supporting Context</p>
-                        <p className={`text-sm ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {msg.context}
-                        </p>
-                      </motion.div>
-                    )}
-                    {msg.score !== undefined && (
-                      <div className={`mt-2 text-xs ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-500'}`}>
-                        Score Impact: {msg.score > 0 ? '+' : ''}{msg.score.toFixed(2)}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+              {messages.map((msg, idx) => renderMessage(msg, idx))}
             </AnimatePresence>
 
-            {isCourtSpeaking && (
+            {isLoading && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -344,7 +251,7 @@ const HAIChatInterface = () => {
       {/* Input Section */}
       {gameState?.case_status === 'open' && 
        gameState.next_turn === 'human' && 
-       !isCourtSpeaking && (
+       !isLoading && (
         <motion.form 
           onSubmit={handleSubmit}
           initial={{ y: 20 }}
@@ -378,7 +285,7 @@ const HAIChatInterface = () => {
                 </motion.button>
                 <motion.button
                   type="submit"
-                  disabled={isCourtSpeaking || !input.trim()}
+                  disabled={isLoading || !input.trim()}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="p-2 rounded-lg bg-black text-white disabled:opacity-40 disabled:cursor-not-allowed"
@@ -392,39 +299,20 @@ const HAIChatInterface = () => {
       )}
 
       {/* Case Closed State */}
-      {/* {gameState?.case_status === 'closed' && (
+      {(gameState?.case_status === 'closed' || gameState?.case_status === 'Closed') && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-        >
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
-            <Award className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-center mb-3">Case Closed</h3>
-            <p className="text-lg text-center mb-2">Winner: {gameState.winner}</p>
-            <p className="text-sm text-gray-500 text-center">
-              Final Score Difference: {gameState.score_difference?.toFixed(2)}
-            </p>
-          </div>
-        </motion.div>
-      )} */}
-      <div>
-        {(gameState?.case_status === 'closed' || gameState?.case_status === 'Closed') && (
-          <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
           className="bg-white/70 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg"
-          >
-            <Award className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
-            <h3 className="text-2xl font-bold mb-2 text-gray-800">Case Closed</h3>
-            <p className="text-lg mb-2 text-gray-700">Winner: {gameState.winner}</p>
-            <p className="text-sm text-gray-600 mb-4">
-              Final Score Difference: {gameState.score_difference?.toFixed(2)}
-            </p>
-          </motion.div>
-        )}
-        <div ref={endRef}/>
-        </div>
+        >
+          <Award className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+          <h3 className="text-2xl font-bold mb-2 text-gray-800">Case Closed</h3>
+          <p className="text-lg mb-2 text-gray-700">Winner: {gameState.winner || 'Unknown'}</p>
+          <p className="text-sm text-gray-600 mb-4">
+            Final Score Difference: {parseFloat(gameState.score_difference || 0).toFixed(2)}
+          </p>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

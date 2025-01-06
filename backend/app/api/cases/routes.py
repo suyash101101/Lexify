@@ -89,14 +89,22 @@ from ...schema.schemas import (
 from ...db.redis_db import redis_client
 
 router = APIRouter()
+# In-memory cache with expiration time
+cases_cache = {}
+CACHE_EXPIRY = 600  # 10 minutes in seconds
 
 @router.get("/{case_id}")
 async def get_case(case_id: str):
     """Retrieves full case details"""
-    case = redis_client.get_case(case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+    redis_cases = redis_client.list_cases()
+    if case_id in redis_cases:
+        return redis_cases[case_id]
+    else:
+        case = redis_client.get_case(case_id)
+        if not case:
+            raise HTTPException(status_code=404, detail="Case not found")
     return case
+
 
 @router.get("/")
 async def list_cases():

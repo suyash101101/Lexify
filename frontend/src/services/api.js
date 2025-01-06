@@ -1,63 +1,54 @@
 // services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}`;
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL
+});
 
-export const api = {
-  // HAI specific endpoints
-  startHAISimulation: async (caseId) => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/hai/start-simulation`);
-      return response.data;
-    } catch (error) {
-      console.error('Error starting HAI simulation:', error);
-      throw error;
-    }
-  },
+// HAI (Human-AI Interaction) endpoints
+const startHAISimulation = async (caseId) => {
+  const response = await apiClient.post('/api/hai/start-simulation', {
+    case_id: caseId
+  });
+  return response.data;
+};
 
-  processHAIInput: async (input, caseId) => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/hai/process-input`, {
-        turn_type: "human",
-        input_text: input,
-        case_id: caseId
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error processing HAI input:', error);
-      throw error;
-    }
-  },
+const processHAIInput = async (data) => {
+  const response = await apiClient.post('/api/hai/process-input', data);
+  return response.data;
+};
 
-  getConversationHistory: async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/hai/conversation-history`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching conversation history:', error);
-      throw error;
-    }
-  },
-  
-  getCaseDetails : async(case_id)=>{
-    try{
-      const response = await axios.get(`${API_BASE_URL}/api/hai/get-case-details/${case_id}`);
-      // console.log(response.data)
-      return response.data;
-    }catch(error){
-      console.error('Error fetching case details:', error);
-      throw error;
-    }
-  },
+const getConversationHistory = async () => {
+  const response = await apiClient.get('/api/hai/conversation-history');
+  return response.data;
+};
 
-  getCaseDetailsById : async(case_id)=>{
-    try{
-      const response = await axios.get(`${API_BASE_URL}/cases/${case_id}`);
-      return response.data;
-    }catch(error){
-      console.error('Error fetching case details:', error);
-      throw error;
-    }
-  }
+const getCaseDetails = async (caseId) => {
+  const response = await apiClient.get(`/api/hai/get-case-details/${caseId}`);
+  return response.data;
+};
 
+const getCaseState = async (caseId) => {
+  const response = await apiClient.get(`/api/hai/case-state/${caseId}`);
+  return response.data;
+};
+
+const getCaseDetailsById = async (caseId) => {
+  const response = await apiClient.get(`/api/cases/${caseId}`);
+  return response.data;
+};
+
+const endCase = async (caseId) => {
+  const response = await apiClient.delete(`/api/hai/end-case/${caseId}`);
+  return response.data;
+};
+
+export {
+  startHAISimulation,
+  processHAIInput,
+  getCaseState,
+  endCase,
+  getConversationHistory,
+  getCaseDetails,
+  getCaseDetailsById
 };

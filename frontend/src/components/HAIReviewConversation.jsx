@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Award, AlertCircle, MessageCircle, Send, Mic } from 'lucide-react';
-import { api } from '../services/api';
+import { Award, AlertCircle, MessageCircle, Send, Mic, Gavel } from 'lucide-react';
+import { getCaseDetails } from '../services/api';
 import VoiceButton from './VoiceButton';
 import { useSpeechRecognition } from '../utils/useVoice';
 
@@ -20,7 +20,7 @@ const HAIReviewConversation = () => {
   useEffect(() => {
     const fetchCaseData = async () => {
       try {
-        const response = await api.getCaseDetails(case_id);
+        const response = await getCaseDetails(case_id);
         // console.log("the response received in the frontend", response);
         setGameState(response);
 
@@ -56,55 +56,174 @@ const HAIReviewConversation = () => {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    // Immediately add the human message to the UI
+    const humanMessage = {
+      input: input.trim(),
+      context: "",
+      speaker: "human",
+      score: 0
+    };
+    setMessages(prev => [...prev, humanMessage]);
+    setInput(''); // Clear input
+    setIsCourtSpeaking(true);
+
+    try {
+      const response = await fetch('/api/hai/process-input', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          turn_type: "human",
+          input_text: humanMessage.input,
+          case_id: case_id
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to process input');
+      
+      const data = await response.json();
+      
+      // Update messages with the judge's response and AI's response if present
+      setMessages(prev => {
+        const newMessages = [...prev];
+        if (data.current_response) {
+          newMessages.push(data.current_response);
+        }
+        if (data.judge_comment) {
+          newMessages.push(data.judge_comment);
+        }
+        return newMessages;
+      });
+      
+      setGameState(prev => ({
+        ...prev,
+        case_status: data.case_status,
+        next_turn: data.next_turn,
+        human_score: data.human_score,
+        ai_score: data.ai_score
+      }));
+    } catch (e) {
+      console.error('Error submitting message:', e);
+      setError('Failed to send message');
+    } finally {
+      setIsCourtSpeaking(false);
+    }
+  };
+
   const renderMessage = (msg, idx) => (
     <motion.div
       key={idx}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className={`flex ${msg.speaker === 'human' ? 'justify-end' : 'justify-start'}`}
+      className={`flex ${msg.speaker === 'human' ? 'justify-end' : 'justify-start'} mb-6`}
     >
       <div className={`max-w-[85%] ${
         msg.speaker === 'human' 
           ? 'bg-black text-white' 
           : msg.speaker === 'judge' 
-          ? msg.isComment
-            ? 'bg-gray-50 border-l-2 border-gray-900'
-            : 'bg-gray-50'
+          ? 'bg-gray-100 border-l-4 border-yellow-600'
           : 'bg-gray-50'
-      } rounded-xl p-4 shadow-sm`}>
+      } rounded-xl p-4 shadow-md`}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">
-            {msg.speaker === 'ai' ? 'AI Lawyer' : 
-             msg.speaker === 'human' ? 'You' : 
-             msg.isComment ? 'Judge\'s Comment' : 'Judge'}
-          </span>
+          <div className="flex items-center">
+            {msg.speaker === 'judge' && (
+              <Gavel className="w-4 h-4 mr-2 text-yellow-600" />
+            )}
+            <span className={`text-sm font-medium ${
+              msg.speaker === 'judge' ? 'text-yellow-700' : ''
+            }`}>
+              {msg.speaker === 'ai' ? 'AI Lawyer' : 
+               msg.speaker === 'human' ? 'You' : 
+               'The Honorable Court'}
+            </span>
+          </div>
           {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
             <VoiceButton text={msg.input} />
           )}
         </div>
-        <div className={`text-base ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
+        <div className={`text-base ${
+          msg.speaker === 'human' 
+            ? 'text-white' 
+            : msg.speaker === 'judge'
+            ? 'text-gray-800 font-serif italic'
+            : 'text-gray-800'
+        }`}>
           {msg.input}
         </div>
         {msg.context && (
           <motion.div 
             initial={{ height: 0 }}
             animate={{ height: "auto" }}
-            className="mt-3 pt-3 border-t border-gray-200/20"
+            className={`mt-3 pt-3 border-t ${
+              msg.speaker === 'human' 
+                ? 'border-gray-200/20' 
+                : msg.speaker === 'judge'
+                ? 'border-yellow-200'
+                : 'border-gray-200'
+            }`}
           >
-            <p className="font-medium mb-1 text-sm">Supporting Context</p>
-            <p className={`text-sm ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`font-medium mb-1 text-sm ${
+              msg.speaker === 'judge' ? 'text-yellow-700' : ''
+            }`}>
+              {msg.speaker === 'judge' ? 'Court Direction' : 'Supporting Context'}
+            </p>
+            <p className={`text-sm ${
+              msg.speaker === 'human' 
+                ? 'text-gray-300' 
+                : msg.speaker === 'judge'
+                ? 'text-gray-700'
+                : 'text-gray-600'
+            }`}>
               {msg.context}
             </p>
           </motion.div>
         )}
-        {msg.score !== undefined && (
-          <div className={`mt-2 text-xs ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-500'}`}>
+        {msg.score !== undefined && msg.speaker !== 'judge' && (
+          <div className={`mt-2 text-xs ${
+            msg.speaker === 'human' 
+              ? 'text-gray-300' 
+              : 'text-gray-500'
+          }`}>
             Score Impact: {msg.score > 0 ? '+' : ''}{msg.score}
           </div>
         )}
       </div>
     </motion.div>
+  );
+
+  const renderInputForm = () => (
+    <form onSubmit={handleSubmit} className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
+      <div className="max-w-3xl mx-auto flex gap-4">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Present your argument to the court..."
+          className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+          disabled={gameState?.case_status === 'closed' || gameState?.next_turn !== 'human'}
+        />
+        <button
+          type="button"
+          onClick={handleVoiceInput}
+          className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          <Mic className={`w-5 h-5 ${isListening ? 'text-red-500' : 'text-gray-500'}`} />
+        </button>
+        <button
+          type="submit"
+          disabled={gameState?.case_status === 'closed' || gameState?.next_turn !== 'human'}
+          className="p-2 rounded-xl bg-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Send className="w-5 h-5" />
+        </button>
+      </div>
+    </form>
   );
 
   return (
@@ -185,7 +304,7 @@ const HAIReviewConversation = () => {
       </div>
 
       {/* Case Closed State */}
-      {(gameState?.case_status === 'closed' || gameState?.case_status==='Closed')&& (
+      {(gameState?.case_status === 'closed' || gameState?.case_status === 'Closed') && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -199,7 +318,9 @@ const HAIReviewConversation = () => {
           </p>
         </motion.div>
       )}
-      <div ref={endRef} />
+
+      {/* Input Form */}
+      {renderInputForm()}
     </motion.div>
   );
 };

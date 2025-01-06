@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { Button } from './shared/Button';
 import { Card } from './shared/Card';
 import { Loading } from './shared/Loading';
-import { api } from '../services/api';
+import { getCaseDetailsById } from '../services/api';
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
@@ -157,7 +157,7 @@ const CaseCard = ({ legalCase, onDelete }) => {
 
   const handleCaseDetails = async (case_id) => {
     try {
-      const details = await api.getCaseDetailsById(case_id);
+      const details = await axiosInstance.get(`/cases/${case_id}`);
       setCaseDetails(details);
       setIsModalOpen(true);
     } catch (error) {
