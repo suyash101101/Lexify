@@ -20,6 +20,7 @@ import Terms from './pages/Terms';
 import Blog from './pages/Blog';
 import About from './pages/About';
 import Footer from './components/shared/Footer';
+import { Analytics } from '@vercel/analytics/react';
 
 
 // Wrapper for authenticated routes with DashboardLayout
@@ -99,6 +100,7 @@ const App = () => {
           </PrivateRoute>
         } />
       </Routes>
+      <Analytics />
 
       {/* Only show Footer on public routes */}
       {!isAuthenticated && <Footer />}
