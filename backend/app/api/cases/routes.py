@@ -158,8 +158,8 @@ async def create_case(case_data: CaseCreateSchema):
                 } for file in case_data.lawyer2_files
             ],#this will be given to the lawyer itself 
             "case_status": case_data.case_status,
-            "created_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
-            "updated_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            "created_at": datetime.now().astimezone().strftime("%d-%m-%Y %H:%M:%S %Z"),
+            "updated_at": datetime.now().astimezone().strftime("%d-%m-%Y %H:%M:%S %Z")
         }
         
         #here add the thing in order to put the particular case into the database 
