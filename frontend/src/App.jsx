@@ -74,10 +74,20 @@ const App = () => {
           </PrivateRoute>
         } />
         <Route path="/contactus" element={
-          <PrivateRoute>
+          
             <ContactUs />
-          </PrivateRoute>
+          
         } />
+        <Route path="/shipping" element={
+          
+          <ContactUs />
+        
+      } />
+      <Route path="/refund" element={
+          
+          <ContactUs />
+        
+      } />
         <Route path="/consultancy" element={
           <PrivateRoute>
             <Consulting />
