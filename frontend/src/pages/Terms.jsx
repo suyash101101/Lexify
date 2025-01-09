@@ -26,7 +26,7 @@ const Terms = () => {
             <ScrollText className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-display font-bold text-black mb-4">Terms of Service</h1>
-          <p className="text-black/60">Last updated: {new Date().toLocaleDateString()}</p>
+          <p className="text-black/60">Last updated: 08-01-2025</p>
         </div>
 
         <div className="prose prose-lg mx-auto">
@@ -64,7 +64,7 @@ const Terms = () => {
             <p className="text-black/60 mb-6">
               If you have any questions or concerns about our Terms of Service, please contact our legal team.
             </p>
-            <button className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-black/90 transition-colors">
+            <button onClick={() => window.open("mailto:lexifyai.in@gmail.com", "_blank")} className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-black/90 transition-colors">
               Contact Legal Team
             </button>
           </div>

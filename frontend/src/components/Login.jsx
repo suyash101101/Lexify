@@ -30,7 +30,7 @@ const Login = () => {
       <div className="relative bg-accent-white border border-primary-main/5 rounded-3xl p-8 md:p-12 w-full max-w-md">
         <div className="flex flex-col items-center text-center">
           {/* Logo */}
-          <div className="mb-8">
+          <div className="mb-8 flex flex-col items-center">
             <div className="w-16 h-16 bg-primary-main rounded-2xl flex items-center justify-center mb-4">
               <Scale className="w-8 h-8 text-accent-white" />
             </div>
@@ -60,9 +60,9 @@ const Login = () => {
           {/* Terms */}
           <p className="mt-6 text-sm text-primary-main/40">
             By signing in, you agree to our{' '}
-            <a href="#terms" className="text-primary-main hover:underline">Terms of Service</a>
+            <a href="/terms" className="text-primary-main hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <a href="#privacy" className="text-primary-main hover:underline">Privacy Policy</a>
+            <a href="/privacy" className="text-primary-main hover:underline">Privacy Policy</a>
           </p>
         </div>
       </div>

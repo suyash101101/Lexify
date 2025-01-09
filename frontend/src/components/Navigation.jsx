@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -14,10 +14,10 @@ const NavLink = ({ to, children }) => {
     <button
       onClick={() => navigate(to)}
       className={`
-        px-4 py-2 text-sm font-medium transition-all duration-200 rounded-full
+        px-4 py-2 text-md font-medium transition-all duration-200 rounded-xl
         ${isActive 
-          ? 'text-primary-main bg-primary-main/5' 
-          : 'text-primary-main/60 hover:text-primary-main hover:bg-primary-main/5'
+          ? 'text-black' 
+          : 'text-black/60 hover:text-black hover:bg-black/5'
         }
       `}
     >
@@ -53,8 +53,8 @@ const Navigation = () => {
 
   return (
     <header className="fixed top-0 sm:top-6 left-0 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[95%] sm:max-w-3xl">
-      <nav className="bg-accent-white/80 backdrop-blur-md sm:rounded-full px-4 sm:px-6 py-3 
-                     border-b sm:border border-primary-main/10 shadow-[0_0_0_1px_rgba(0,0,0,0.03)]
+      <nav className="bg-accent-white/70 backdrop-blur-md sm:rounded-xl px-4 sm:px-6 py-3 
+                     border-b sm:border shadow-[0_0_0_1px_rgba(0,0,0,0.03)]
                      hover:shadow-[0_0_0_1px_rgba(0,0,0,0.05)] transition-all duration-300">
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
@@ -62,7 +62,7 @@ const Navigation = () => {
             onClick={() => navigate('/')}
             className="flex items-center cursor-pointer shrink-0"
           >
-            <div className="w-8 h-8 bg-primary-main rounded-full flex items-center justify-center mr-2">
+            <div className="w-8 h-8 bg-primary-main rounded-xl flex items-center justify-center mr-2">
               <Scale className="w-4 h-4 text-accent-white" />
             </div>
             <span className="text-lg font-display font-bold text-primary-main">
@@ -83,7 +83,7 @@ const Navigation = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center space-x-3 px-4 py-2 bg-primary-main/5 rounded-full
+                  className="flex items-center space-x-3 px-4 py-2  rounded-full
                             hover:bg-primary-main/10 transition-colors duration-200"
                 >
                   {user?.picture ? (

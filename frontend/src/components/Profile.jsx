@@ -83,11 +83,11 @@ const Profile = () => {
             title="User ID"
             value={user?.sub}
           />
-          <ProfileCard
+          {/* <ProfileCard
             icon={Calendar}
             title="Member Since"
             value={new Date(user?.updated_at).toLocaleDateString()}
-          />
+          /> */}
           <ProfileCard
             icon={Shield}
             title="Account Type"

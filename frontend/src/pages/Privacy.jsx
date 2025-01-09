@@ -27,7 +27,7 @@ const Privacy = () => {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-display font-bold text-black mb-4">Privacy Policy</h1>
-          <p className="text-black/60">Last updated: {new Date().toLocaleDateString()}</p>
+          <p className="text-black/60">Last updated: 08-01-2025</p>
         </div>
 
         <div className="prose prose-lg mx-auto">
@@ -73,8 +73,8 @@ const Privacy = () => {
             <p className="text-black/60 mb-6">
               We're here to help with any privacy-related concerns. Contact our dedicated privacy team at:
             </p>
-            <a href="mailto:privacy@lexify.ai" className="text-black hover:text-black/80 font-medium">
-              privacy@lexify.ai
+            <a href="mailto:lexifyai.in@gmail.com" className="text-black hover:text-black/80 font-medium">
+              lexifyai.in@gmail.com
             </a>
           </div>
         </div>

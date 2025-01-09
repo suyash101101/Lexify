@@ -100,7 +100,7 @@ const Pricing = () => {
             Need a custom solution? We offer tailored enterprise plans with custom features, 
             dedicated support, and flexible pricing based on your specific requirements.
           </p>
-          <button className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-black/90 transition-colors">
+          <button onClick={() => window.open("mailto:lexifyai.in@gmail.com", "_blank")} className="bg-black text-white px-8 py-3 rounded-xl font-medium hover:bg-black/90 transition-colors">
             Contact Sales
           </button>
         </div>

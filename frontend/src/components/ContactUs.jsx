@@ -5,6 +5,19 @@ import { Send, Mail, MessageSquare, User, Phone, MapPin } from 'lucide-react';
 const ContactUs = () => {
   const { user } = useAuth0();
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const name = formData.get('name');
+    const email = formData.get('email');
+    const message = formData.get('message');
+
+    const mailtoLink = `mailto:lexifyai.in@gmail.com?subject=Contact Form Submission from ${name}&body=Name: ${name}%0D%0AEmail: ${email}%0D%0A%0D%0AMessage:%0D%0A${message}`;
+    
+    window.open(mailtoLink, '_blank');
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <motion.div
@@ -50,8 +63,7 @@ const ContactUs = () => {
                 <Mail className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-black mb-2">Email Us</h3>
-              <p className="text-gray-500 text-sm">support@lexify.com</p>
-              <p className="text-gray-500 text-sm">contact@lexify.com</p>
+              <p onClick={() => window.open("mailto:lexifyai.in@gmail.com", "_blank")} className="text-gray-500 text-sm">lexifyai.in@gmail.com</p>
             </div>
 
             {/* Phone Card */}
@@ -81,7 +93,7 @@ const ContactUs = () => {
             transition={{ delay: 0.4 }}
             className="lg:col-span-2 bg-white border border-black/5 p-8 rounded-2xl shadow-sm"
           >
-            <form className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-black">Name</label>
@@ -91,6 +103,7 @@ const ContactUs = () => {
                     </div>
                     <input
                       type="text"
+                      name="name"
                       defaultValue={user?.name}
                       className="pl-10 w-full h-11 px-4 rounded-xl border border-black/10 
                                focus:outline-none focus:border-black/20 focus:ring-0
@@ -108,6 +121,7 @@ const ContactUs = () => {
                     </div>
                     <input
                       type="email"
+                      name="email"
                       defaultValue={user?.email}
                       className="pl-10 w-full h-11 px-4 rounded-xl border border-black/10 
                                focus:outline-none focus:border-black/20 focus:ring-0
@@ -121,6 +135,7 @@ const ContactUs = () => {
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-black">Message</label>
                 <textarea
+                  name="message"
                   rows={4}
                   className="w-full px-4 py-3 rounded-xl border border-black/10 
                            focus:outline-none focus:border-black/20 focus:ring-0
@@ -149,4 +164,3 @@ const ContactUs = () => {
 };
 
 export default ContactUs;
-

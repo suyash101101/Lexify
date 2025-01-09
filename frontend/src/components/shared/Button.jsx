@@ -2,15 +2,15 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 const variants = {
-  primary: 'bg-primary-main hover:bg-primary-light text-accent-white border border-transparent',
-  secondary: 'bg-accent-white hover:bg-accent-gray text-primary-main border border-primary-main/10',
-  outline: 'bg-transparent border border-primary-main text-primary-main hover:bg-accent-gray',
+  primary: 'bg-gradient-to-b from-gray-800 to-gray-950 hover:[background-image:none] bg-black active:bg-gray-900 text-white border-none',
+  secondary: 'bg-accent-white hover:bg-accent-gray text-primary-main border-[0.5px] border-black/15',
+  outline: 'bg-transparent border-[0.5px] border-black/15 text-primary-main hover:bg-accent-gray',
 };
 
 const sizes = {
-  sm: 'px-4 py-2 text-sm',
-  md: 'px-6 py-3 text-base',
-  lg: 'px-8 py-4 text-lg',
+  sm: 'text-[0.95rem] px-3 pt-[0.65rem] pb-[0.75rem]',
+  md: 'text-[1.05rem] px-4 pt-[0.75rem] pb-[0.85rem]',
+  lg: 'text-[1.15rem] px-6 pt-[0.85rem] pb-[0.95rem]',
 };
 
 export const Button = ({ 
@@ -33,11 +33,21 @@ export const Button = ({
         ${variants[variant]}
         ${sizes[size]}
         inline-flex items-center justify-center
-        ${rounded ? 'rounded-full' : 'rounded-lg'}
-        font-medium
-        transition-all duration-200
-        hover:scale-[1.02] active:scale-[0.98]
-        ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+        ${rounded ? 'rounded-xl' : 'rounded-lg'}
+        font-semibold
+        -tracking-[0.01rem]
+        leading-none
+        whitespace-nowrap
+        transition-colors
+        shadow-button-light
+        select-none
+        active:shadow-none 
+        active:ring-[0.5px]
+        active:ring-zinc-900/10
+        focus-visible:outline-none 
+        focus-visible:ring-1
+        focus-visible:ring-ring
+        ${disabled ? 'disabled:pointer-events-none disabled:opacity-50' : 'cursor-pointer'}
         ${className}
       `}
       {...props}

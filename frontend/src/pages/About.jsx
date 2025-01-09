@@ -57,7 +57,7 @@ const About = () => {
               Experience the perfect blend of legal expertise and technological innovation. 
               Lexify is more than a platform; it's a movement towards smarter, more efficient legal practice.
             </p>
-            <button className="bg-white text-black px-8 py-3 rounded-xl font-medium hover:bg-white/90 transition-colors">
+            <button onClick={() => window.open("https://lexifyai.in/login", "_blank")} className="bg-white text-black px-8 py-3 rounded-xl font-medium hover:bg-white/90 transition-colors">
               Get Started
             </button>
           </div>
