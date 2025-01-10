@@ -34,12 +34,12 @@ const ChatInterface = ({ isWidget = false }) => {
       }
 
       // If credit deduction successful, proceed with sending message
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/chat`, {
-        message: input,
-        user_id: user.sub
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
+        prompt: input
       });
+      console.log(response);
 
-      setResponse(response.data.response);
+      setResponse(response.data);
       setInput('');
     } catch (error) {
       console.error('Error processing chat:', error);
