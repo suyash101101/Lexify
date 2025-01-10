@@ -42,9 +42,11 @@ const ChatInterface = ({ isWidget = false }) => {
 
       setResponse(response.data);
       setInput('');
+      setLoading(false);
     } catch (error) {
       console.error('Error processing chat:', error);
       toast.error(error.response?.data?.detail || 'Failed to process your message. Please try again.');
+      setLoading(false);
     }
   };
 
