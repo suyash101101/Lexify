@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     pinata_secret_api_key: str
     google_api_key: str
     data_dir : str
-    
+    razorpay_key_id: str
+    razorpay_key_secret: str
+
     class Config:
         env_file = ".env"
         case_sensitive = False

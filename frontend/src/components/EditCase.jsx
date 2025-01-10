@@ -1,78 +1,87 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { api } from '../services/api';
 
 const EditCase = () => {
   const { caseId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth0();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [caseData, setCaseData] = useState(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState('');
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    case_status: ''
+  });
 
-  useEffect(() => {
-    const fetchCase = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/cases/${caseId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.lawyer1_address !== user.sub) {
-            navigate('/cases');
-            return;
-          }
-          setCaseData(data);
-          setTitle(data.title);
-          setDescription(data.description);
-          setStatus(data.case_status);
-        } else {
-          navigate('/cases');
-        }
-      } catch (error) {
-        console.error('Error fetching case:', error);
+  // Query for fetching case details
+  const { isLoading } = useQuery({
+    queryKey: ['case', caseId],
+    queryFn: async () => {
+      const data = await api.getCaseDetailsById(caseId);
+      if (data.lawyer1_address !== user.sub) {
+        toast.error("You don't have permission to edit this case");
         navigate('/cases');
-      } finally {
-        setLoading(false);
+        return null;
       }
-    };
+      // Prefill form data
+      setFormData({
+        title: data.title,
+        description: data.description,
+        case_status: data.case_status
+      });
+      return data;
+    },
+    enabled: !!user?.sub && !!caseId,
+    onError: () => {
+      toast.error('Failed to load case details');
+      navigate('/cases');
+    }
+  });
 
-    fetchCase();
-  }, [caseId, user.sub, navigate]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
+  // Mutation for updating case
+  const updateMutation = useMutation({
+    mutationFn: async (data) => {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/cases/${caseId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          description,
-          case_status: status
-        })
+        body: JSON.stringify(data)
       });
-
-      if (response.ok) {
-        navigate('/cases');
-      } else {
-        throw new Error('Failed to update case');
-      }
-    } catch (error) {
-      console.error('Error updating case:', error);
-    } finally {
-      setSaving(false);
+      if (!response.ok) throw new Error('Failed to update case');
+      return response.json();
+    },
+    onSuccess: (response) => {
+      // Update both case list and individual case cache
+      queryClient.setQueryData(['case', caseId], (old) => ({ ...old, ...response }));
+      queryClient.invalidateQueries(['cases', user?.sub]);
+      toast.success('Case updated successfully');
+      navigate('/cases');
+    },
+    onError: () => {
+      toast.error('Failed to update case');
     }
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    updateMutation.mutate(formData);
   };
 
-  if (loading) {
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
@@ -110,8 +119,9 @@ const EditCase = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Case Title</label>
                   <input
                     type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
                     required
                     className="w-full h-10 px-3 rounded-md border border-gray-200 
                       focus:border-black focus:ring-0
@@ -122,8 +132,9 @@ const EditCase = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Case Description</label>
                   <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
                     required
                     rows={6}
                     className="w-full px-3 py-2 rounded-md border border-gray-200 
@@ -135,8 +146,9 @@ const EditCase = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Case Status</label>
                   <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
+                    name="case_status"
+                    value={formData.case_status}
+                    onChange={handleInputChange}
                     className="w-full h-10 px-3 rounded-md border border-gray-200 
                       focus:border-black focus:ring-0
                       bg-white text-black"
@@ -158,11 +170,11 @@ const EditCase = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={updateMutation.isPending}
                   className="px-4 py-2 rounded-full bg-black text-white text-sm font-medium hover:bg-black/90 
                     disabled:bg-black/40 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {saving ? (
+                  {updateMutation.isPending ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Saving...</span>

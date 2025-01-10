@@ -2,10 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, Plus, CheckCircle2 } from 'lucide-react';
+import { Upload, X, Plus, CheckCircle2, Coins } from 'lucide-react';
 import PropTypes from 'prop-types';
 import * as pdfjsLib from 'pdfjs-dist';
 import 'pdfjs-dist/build/pdf.worker.entry';
+import { Button } from './shared/Button';
+import { useCredits } from '../context/CreditContext';
 
 const CASE_TEMPLATES = [
   {
@@ -258,6 +260,7 @@ LoadingModal.propTypes = {
 const CreateCase = () => {
   const { user } = useAuth0();
   const navigate = useNavigate();
+  const { deductCredits, CREDIT_COSTS } = useCredits();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [files, setFiles] = useState([]);
@@ -403,6 +406,15 @@ const CreateCase = () => {
     setLoadingProgress(0);
 
     try {
+      // Use credits through context
+      const creditResult = await deductCredits('case_creation');
+      if (!creditResult.success) {
+        setLoading(false);
+        alert("Not enough credits. Please purchase more credits to create a case.");
+        navigate('/pricing');
+        return;
+      }
+
       // Start file processing
       setLoadingProgress(0);
       const formData = {
@@ -434,6 +446,10 @@ const CreateCase = () => {
 
       // Case report generation
       setLoadingProgress(2);
+
+      
+
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/cases/create`, {
         method: 'POST',
         headers: {
@@ -650,7 +666,7 @@ const CreateCase = () => {
                   </div>
                 </div>
 
-                <button
+                <Button
                   type="submit"
                   disabled={loading || files.length === 0}
                   className={`w-full h-11 px-6 rounded-full text-white font-medium flex items-center justify-center gap-2
@@ -664,10 +680,11 @@ const CreateCase = () => {
                   ) : (
                     <>
                       <Plus className="w-5 h-5" />
-                      <span>Create Case</span>
+                      <span>Create Case ({CREDIT_COSTS.case_creation} Credits)</span>
+                      <Coins className="w-4 h-4" />
                     </>
                   )}
-                </button>
+                </Button>
               </form>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -9,9 +9,14 @@ import {
   Phone,
   Menu,
   X,
-  User
+  User,
+  Coins,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { GlobalConsultingWidget } from '../Consulting';
+import { Button } from '../shared/Button';
+import { useCredits } from '../../context/CreditContext';
 
 const SidebarLink = ({ to, icon: Icon, children, onNavigate }) => {
   const location = useLocation();
@@ -50,11 +55,12 @@ SidebarLink.propTypes = {
 
 const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isCreditsExpanded, setIsCreditsExpanded] = useState(false);
   const { user, logout } = useAuth0();
+  const { credits, CREDIT_COSTS } = useCredits();
   const navigate = useNavigate();
 
   const handleMobileNavigate = () => {
-    // Only close sidebar on mobile
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
@@ -108,21 +114,65 @@ const DashboardLayout = ({ children }) => {
 
           {/* User Profile - Fixed at bottom */}
           <div className="mt-auto border-t border-primary-main/5 p-4 space-y-2 bg-accent-white">
+            {/* Credits Display */}
+            {credits !== null && (
+              <div className="p-4 bg-black/[0.02] rounded-xl border border-black/5">
+                <button 
+                  onClick={() => setIsCreditsExpanded(!isCreditsExpanded)}
+                  className="w-full flex items-center justify-between mb-2"
+                >
+                  <span className="text-sm font-medium text-black">Available Credits</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-black">{credits}</span>
+                    {isCreditsExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-black/60" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-black/60" />
+                    )}
+                  </div>
+                </button>
+                
+                {isCreditsExpanded && (
+                  <div className="pt-2 border-t border-black/5 mt-2 space-y-2">
+                    <h1 className="text-sm font-medium text-black">Credits Usage Breakdown</h1>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-black/60">Case Creation</span>
+                      <span className="font-medium">{CREDIT_COSTS.case_creation} credits</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-black/60">Chat Consulting</span>
+                      <span className="font-medium">{CREDIT_COSTS.chat_consulting} credits</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-black/60">Case Response</span>
+                      <span className="font-medium">{CREDIT_COSTS.case_response} credits</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-black/60">Courtroom Session</span>
+                      <span className="font-medium">100 credits</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="w-full flex items-center justify-center gap-2 mt-3" 
+                      onClick={() => navigate('/pricing')}
+                    >
+                      <Coins className="w-4 h-4" />
+                      <span className="font-medium">Buy More Credits</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Profile Link */}
-            <button
-              onClick={() => navigate('/profile')}
-              className={`
-                w-full flex items-center gap-3 px-4 py-3 rounded-xl
-                text-primary-main/60 hover:bg-primary-main/5 hover:text-primary-main
-                transition-all duration-200
-              `}
-            >
+            <Button onClick={() => navigate('/profile')}>
               <User className="w-5 h-5" />
               <span className={`font-medium transition-opacity duration-200
                             ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
                 View Profile
               </span>
-            </button>
+            </Button>
+          
 
             {/* User Info & Sign Out */}
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl">
@@ -187,7 +237,7 @@ const DashboardLayout = ({ children }) => {
 };
 
 DashboardLayout.propTypes = {
-  children: PropTypes.node.isRequired,
+  children: PropTypes.node.isRequired
 };
 
 export default DashboardLayout; 

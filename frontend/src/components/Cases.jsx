@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { 
   Plus, 
@@ -19,6 +20,7 @@ import { Button } from './shared/Button';
 import { Card } from './shared/Card';
 import { Loading } from './shared/Loading';
 import { api } from '../services/api';
+import { toast } from 'react-hot-toast';
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
@@ -286,44 +288,45 @@ CaseCard.propTypes = {
 const Cases = () => {
   const navigate = useNavigate();
   const { user } = useAuth0();
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const queryClient = useQueryClient();
 
-  const fetchCases = async () => {
-    try {
+  // Query for fetching cases with caching
+  const { data: cases = [], isLoading } = useQuery({
+    queryKey: ['cases', user?.sub],
+    queryFn: async () => {
       const response = await axiosInstance.get('/cases');
       if (response.status === 200) {
         const allCases = response.data;
         const userCases = allCases.filter(
           legalCase => legalCase.lawyer1_address === user.sub
         );
-        const sortedCases = userCases.sort((a, b) => 
+        return userCases.sort((a, b) => 
           new Date(b.created_at) - new Date(a.created_at)
         );
-        setCases(sortedCases);
-      } else {
-        console.error('Failed to fetch cases:', response.status);
       }
-    } catch (error) {
-      console.error('Error fetching cases:', error.message);
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-      }
-    } finally {
-      setLoading(false);
+      throw new Error('Failed to fetch cases');
+    },
+    enabled: !!user?.sub,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
+  });
+
+  // Mutation for deleting cases
+  const deleteMutation = useMutation({
+    mutationFn: (caseId) => axiosInstance.delete(`/cases/${caseId}`),
+    onSuccess: (_, caseId) => {
+      queryClient.setQueryData(['cases', user?.sub], (oldData) => 
+        oldData?.filter(c => c.case_id !== caseId)
+      );
+      toast.success('Case deleted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to delete case');
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchCases();
-  }, [user]);
-
-  const handleCaseDelete = (caseId) => {
-    setCases(cases.filter(c => c.case_id !== caseId));
-  };
-
-  if (loading) {
+  if (isLoading) {
     return <Loading />;
   }
 
@@ -371,7 +374,7 @@ const Cases = () => {
               <CaseCard 
                 key={legalCase.case_id} 
                 legalCase={legalCase}
-                onDelete={handleCaseDelete}
+                onDelete={(caseId) => deleteMutation.mutate(caseId)}
               />
             ))}
           </div>

@@ -39,7 +39,7 @@ const Navigation = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // List of paths where we use DashboardLayout (hide navbar here)
-  const dashboardPaths = ['/cases', '/consultancy', '/contact', '/profile'];
+  const dashboardPaths = ['/cases', '/consultancy', '/profile'];
   
   // Check if current path is a dashboard path
   const isDashboardPage = dashboardPaths.some(path => 
@@ -72,9 +72,9 @@ const Navigation = () => {
 
           {/* Navigation Links - Desktop */}
           <div className="hidden md:flex items-center space-x-1">
-            <NavLink to="/login">Cases</NavLink>
-            <NavLink to="/login">Consultancy</NavLink>
-            <NavLink to="/login">Contact</NavLink>
+            <NavLink to="/cases">Cases</NavLink>
+            <NavLink to="/consultancy">Consultancy</NavLink>
+            <NavLink to="/contactus">Contact</NavLink>
           </div>
 
           {/* User Menu - Desktop */}
@@ -148,9 +148,9 @@ const Navigation = () => {
         {isOpen && (
           <div className="md:hidden mt-4 pt-4 border-t border-primary-main/10">
             <div className="space-y-2">
-              <NavLink to="/login" className="block w-full">Cases</NavLink>
-              <NavLink to="/login" className="block w-full">Consultancy</NavLink>
-              <NavLink to="/login" className="block w-full">Contact</NavLink>
+              <NavLink to="/cases" className="block w-full">Cases</NavLink>
+              <NavLink to="/consultancy" className="block w-full">Consultancy</NavLink>
+              <NavLink to="/contactus" className="block w-full">Contact</NavLink>
               
               {isAuthenticated ? (
                 <>

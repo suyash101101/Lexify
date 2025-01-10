@@ -2,24 +2,28 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
-import { Gavel, Brain, MessageCircle, ArrowRight, Play } from 'lucide-react';
+import { 
+  ArrowRight, Play, Scale, Gavel, ScrollText,
+  Briefcase, Building2, ShieldCheck, BookOpenCheck
+} from 'lucide-react';
 import { Button } from './shared/Button';
 import { Card } from './shared/Card';
 import { Container } from './shared/Container';
 import Navigation from './Navigation';
 import hero from "../assets/hero.png"
+import { WarpBackground } from './shared/WarpBackground';
 
 const FeatureCard = ({ icon: Icon, title, description }) => (
-  <Card className="group flex flex-col items-start space-y-4 hover:border-primary-main/20">
-    <div className="w-14 h-14 bg-primary-main/5 rounded-2xl flex items-center justify-center
-                    group-hover:bg-primary-main/10 transition-colors duration-200">
-      <Icon className="w-7 h-7 text-primary-main" />
+  <Card className="group flex flex-col items-start space-y-4 hover:scale-[1.02] transition-all duration-300">
+    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center
+                    group-hover:bg-emerald-100 transition-colors duration-200">
+      <Icon className="w-6 h-6 text-emerald-900" />
     </div>
     <div>
-      <h3 className="text-xl font-display font-semibold text-primary-main mb-2">
+      <h3 className="text-lg font-medium text-gray-900 mb-1">
         {title}
       </h3>
-      <p className="text-primary-main/60 leading-relaxed">
+      <p className="text-gray-600 text-sm leading-relaxed">
         {description}
       </p>
     </div>
@@ -33,21 +37,19 @@ FeatureCard.propTypes = {
 };
 
 const ProductCard = ({ title, subtitle, description, imagePath }) => (
-  <div className="sticky top-0 min-h-screen flex items-center justify-center bg-[#F5F5F5]">
-    <div className="w-full max-w-[1100px] mx-auto">
-      <div className="bg-white rounded-2xl overflow-hidden shadow-[0_2px_16px_-2px_rgba(0,0,0,0.05)]">
-        {/* Header */}
-        <div className="p-8 space-y-6">
-          <div className="space-y-2">
-            <div className="text-emerald-600/90 font-bold text-sm tracking-wide">{subtitle}</div>
-            <h3 className="text-[32px] font-semibold text-[#1a1a1a] tracking-[-0.02em] leading-tight">{title}</h3>
+  <div className="sticky top-0 min-h-screen flex items-center justify-center">
+    <div className="w-full max-w-5xl mx-auto px-4">
+      <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-8 md:p-12">
+          <div className="space-y-3">
+            <div className="text-emerald-600 font-medium text-sm">{subtitle}</div>
+            <h3 className="text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">{title}</h3>
+            <p className="text-gray-600 text-lg max-w-2xl">{description}</p>
           </div>
-          <p className="text-[#666666] text-lg leading-relaxed max-w-[640px]">{description}</p>
         </div>
 
-        {/* Image Section */}
-        <div className="relative w-full bg-gradient-to-b from-gray-50 to-white p-6">
-          <div className="relative rounded-lg overflow-hidden shadow-[0_2px_16px_-2px_rgba(0,0,0,0.1)] bg-white">
+        <div className="relative bg-gradient-to-b from-gray-50 to-white p-6">
+          <div className="rounded-xl overflow-hidden shadow-lg">
             <img 
               src={`/product_demo/${imagePath}`}
               alt={title}
@@ -67,6 +69,42 @@ ProductCard.propTypes = {
   imagePath: PropTypes.string.isRequired,
 };
 
+const FloatingIcon = ({ icon: Icon, className, style = 1 }) => {
+  const styles = {
+    1: "bg-gradient-to-br from-emerald-50 to-white text-emerald-900/80",
+    2: "bg-gradient-to-br from-sky-50 to-white text-sky-900/80",
+    3: "bg-gradient-to-br from-violet-50 to-white text-violet-900/80",
+    4: "bg-gradient-to-br from-amber-50 to-white text-amber-900/80",
+    5: "bg-gradient-to-br from-rose-50 to-white text-rose-900/80",
+    6: "bg-gradient-to-br from-indigo-50 to-white text-indigo-900/80",
+    7: "bg-gradient-to-br from-teal-50 to-white text-teal-900/80",
+    8: "bg-gradient-to-br from-blue-50 to-white text-blue-900/80"
+  };
+
+  return (
+    <div className={`absolute transform ${className}`}>
+      <div className="relative w-12 h-12 md:w-16 md:h-16">
+        {/* 3D Shadow Effect */}
+        <div className={`absolute inset-0 ${styles[style]} rounded-xl transform translate-y-1 blur-sm opacity-30`} />
+        {/* Main Icon Container */}
+        <div className={`absolute inset-0 ${styles[style]} rounded-xl backdrop-blur-sm 
+                        border border-white/40 shadow-lg`}>
+          <div className="absolute inset-0 bg-white/40 rounded-xl" />
+          <div className="relative h-full flex items-center justify-center">
+            <Icon className="w-6 h-6 md:w-7 md:h-7" strokeWidth={1.5} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+FloatingIcon.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  className: PropTypes.string.isRequired,
+  style: PropTypes.number
+};
+
 const Landing = () => {
   const { loginWithRedirect, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
@@ -76,24 +114,6 @@ const Landing = () => {
       navigate('/cases');
     }
   }, [isAuthenticated, navigate]);
-
-  const features = [
-    {
-      icon: Gavel,
-      title: "Virtual Court Experience",
-      description: "Practice in realistic court simulations with AI powered opposing counsel and judges."
-    },
-    {
-      icon: Brain,
-      title: "AI Powered Analysis",
-      description: "Receive instant, detailed feedback on your arguments and presentation style."
-    },
-    {
-      icon: MessageCircle,
-      title: "Expert Consultation",
-      description: "Connect with our AI legal experts for in-depth case analysis and strategy planning."
-    }
-  ];
 
   const productCards = [
     {
@@ -110,7 +130,7 @@ const Landing = () => {
     },
     {
       subtitle: "Virtual Courtroom",
-      title: "Immersive Court Experience",
+      title: "Immersive Court Experience", 
       description: "Step into our AI powered courtroom where you can practice arguments, handle objections, and receive real time feedback on your performance.",
       imagePath: "Courtroom.png"
     },
@@ -123,99 +143,154 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
+    <div className="min-h-screen">
       <Navigation />
       
       {/* Hero Section */}
-      <section className="relative min-h-[110vh] flex items-start pt-32 lg:pt-40">
-        {/* Hero Background */}
-        <div className="absolute inset-x-0 bottom-0 w-full h-[70vh] lg:h-[80vh] translate-y-[20%]">
-          {/* Container for image and gradients */}
-          <div className="relative h-full max-w-[100%] mx-auto">
-            {/* Top Gradient Blend */}
-            <div className="absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-[#F5F5F5] via-[#F5F5F5] to-transparent z-10" />
-            
-            {/* Bottom Gradient Blend */}
-            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#F5F5F5] to-transparent z-10" />
-            
-            {/* Hero Image */}
-            <img 
-              src={hero} 
-              alt="AI Legal Background" 
-              className="mx-auto relative w-full h-full lg:h-auto object-cover lg:object-contain opacity-40"
-            />
-          </div>
+      <section className="relative min-h-[140vh] flex items-start">
+        <div className="absolute inset-0 top-[50vh]">
+          <img 
+            src={hero}
+            alt="AI Legal Background"
+            className="w-full h-full object-cover opacity-100"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-white via-white/50 to-[#fcfcfd]" />
         </div>
         
-        {/* Content */}
         <Container className="relative z-20">
-          <div className="max-w-3xl mx-auto text-center px-4 space-y-7">
-            {/* Launch Video Button */}
-            <a 
-              href="https://app.supademo.com/demo/cm5ofonkx03fr9mg9wuhje5wt"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 p-1 sm:p-1.5 rounded-full text-sm sm:text-base 
-                        font-semibold text-gray-700 group transition-all duration-500 ease-out select-none
-                        bg-gradient-to-r from-gray-200/80 via-emerald-50/50 to-gray-200/80
-                        hover:from-gray-200 hover:via-emerald-50/70 hover:to-gray-200
-                        hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]
-                        border border-gray-300/30"
-            >
-              <div className="relative flex justify-center items-center">
-                <Play className="w-4 h-4 sm:w-5 sm:h-5 absolute z-10 text-emerald-950/80 transition-colors fill-current" />
-                <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br from-white via-emerald-50/50 to-gray-50/50 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.03)]"></div>
+          <div className="max-w-3xl mx-auto text-center space-y-8 pt-40">
+            <div className="relative">
+              {/* Desktop Icons - Evenly spaced in a balanced layout */}
+              {/* Left Column */}
+              <FloatingIcon 
+                icon={Scale} 
+                className="hidden md:block -left-52 top-8"
+                style={1}
+              />
+              <FloatingIcon 
+                icon={Briefcase} 
+                className="hidden md:block -left-36 top-32"
+                style={2}
+              />
+              <FloatingIcon 
+                icon={BookOpenCheck} 
+                className="hidden md:block -left-48 top-56"
+                style={3}
+              />
+              <FloatingIcon 
+                icon={Gavel} 
+                className="hidden md:block -left-32 top-80"
+                style={7}
+              />
+              <FloatingIcon 
+                icon={ScrollText} 
+                className="hidden md:block -left-44 top-[26rem]"
+                style={8}
+              />
+
+              {/* Right Column */}
+              <FloatingIcon 
+                icon={Building2} 
+                className="hidden md:block -right-52 top-8"
+                style={4}
+              />
+              <FloatingIcon 
+                icon={ShieldCheck} 
+                className="hidden md:block -right-36 top-32"
+                style={5}
+              />
+              <FloatingIcon 
+                icon={BookOpenCheck} 
+                className="hidden md:block -right-48 top-56"
+                style={6}
+              />
+              <FloatingIcon 
+                icon={Scale} 
+                className="hidden md:block -right-32 top-80"
+                style={1}
+              />
+              <FloatingIcon 
+                icon={Briefcase} 
+                className="hidden md:block -right-44 top-[26rem]"
+                style={2}
+              />
+
+              {/* Mobile Icons - Strategically placed */}
+              <FloatingIcon 
+                icon={Scale} 
+                className="md:hidden absolute -left-6 top-20 scale-90"
+                style={1}
+              />
+              <FloatingIcon 
+                icon={Briefcase} 
+                className="md:hidden absolute -left-2 top-48 scale-85"
+                style={2}
+              />
+              <FloatingIcon 
+                icon={Gavel} 
+                className="md:hidden absolute -right-6 top-20 scale-90"
+                style={7}
+              />
+              <FloatingIcon 
+                icon={ShieldCheck} 
+                className="md:hidden absolute -right-2 top-48 scale-85"
+                style={5}
+              />
+
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 text-emerald-900 text-sm font-medium">
+                <Play className="w-4 h-4" />
+                <a href="https://app.supademo.com/demo/cm5ofonkx03fr9mg9wuhje5wt" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   className="hover:text-emerald-700">
+                  Watch the demo
+                </a>
               </div>
-              <span className="pr-1.5 sm:pr-3 group-hover:text-emerald-950/90 font-medium">
-                See the demo video
-              </span>
-            </a>
 
-            <h1 className="text-4xl md:text-5xl lg:text-[4.5rem] font-semibold text-primary-main/90 
-                         tracking-tight leading-[1.15]">
-              Unlock your <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-800 via-emerald-950 to-gray-900">legal</span>
-              <span className="block mt-2">potential</span>
-            </h1>
-            
-            <p className="text-balance text-lg sm:text-xl md:text-2xl font-light text-[#64646F] tracking-tight max-w-2xl mx-auto leading-[1.4]">
-              Practice, learn, and excel with AI powered court simulations at your fingertips
-            </p>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 tracking-tight mt-8">
+                Unlock your
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-emerald-900"> legal </span>
+                potential
+              </h1>
+              
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto mt-8">
+                Practice, learn, and excel with AI powered court simulations at your fingertips
+              </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => loginWithRedirect()}
-                className="inline-flex items-center gap-2.5 text-base py-2.5 px-6 w-auto justify-center
-                          bg-gradient-to-r from-emerald-950 to-gray-900 hover:from-emerald-900 hover:to-gray-800
-                          transition-all duration-300 font-light tracking-wide text-white/90"
-              >
-                Start practicing for free
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center justify-center gap-4 mt-8">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => loginWithRedirect()}
+                  className="px-8 py-4 bg-emerald-900 hover:bg-emerald-800 text-white font-medium rounded-xl
+                            transition-all duration-200 shadow-lg shadow-emerald-900/10"
+                >
+                  Get started free
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
             </div>
           </div>
         </Container>
       </section>
 
       {/* Product Showcase Section */}
-      <section className="relative">
+      <section className="relative bg-gray-50/50">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="sticky top-0 h-screen bg-[#F5F5F5]" />
+          <div className="sticky top-0 h-screen" />
         </div>
         
         <Container className="relative">
-          <div className="text-center pt-20 lg:pt-32 pb-12">
-            <h2 className="text-3xl lg:text-6xl font-display font-bold text-primary-main mb-4 bg-clip-text text-transparent bg-gradient-to-r from-emerald-800 via-emerald-950 to-gray-900">
-              Excel
+          <div className="text-center py-20 lg:py-32">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Designed for modern legal practice
             </h2>
-            <p className="text-xl font-medium text-slate-600/50 text-wrap max-w-2xl mx-auto px-4">
-              Comprehensive tools and features designed to enhance your legal practice journey
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Comprehensive tools and features to enhance your legal journey
             </p>
           </div>
 
-          {/* Scrolling Product Cards */}
-          <div className="relative">
+          <div className="relative space-y-40 pb-20">
             {productCards.map((card, index) => (
               <ProductCard key={index} {...card} />
             ))}
@@ -223,64 +298,42 @@ const Landing = () => {
         </Container>
       </section>
 
-      {/* Features Section */}
-      {/* <section id="features" className="py-20 lg:py-32 relative bg-accent-white">
-        <Container>
-          <div className="text-center mb-16 lg:mb-20 px-4">
-            <h2 className="text-3xl lg:text-4xl font-display font-bold text-primary-main mb-4">
-              Empowering Legal Excellence
-            </h2>
-            <p className="text-lg lg:text-xl text-primary-main/60 max-w-2xl mx-auto">
-              Discover how our AI powered platform transforms traditional legal practice
-              into an innovative, efficient experience.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 px-4">
-            {features.map((feature, index) => (
-              <FeatureCard key={index} {...feature} />
-            ))}
-          </div>
-        </Container>
-      </section> */}
-
       {/* CTA Section */}
-      <section className="py-20 lg:py-32 bg-primary-main relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-[url('/pattern.png')] opacity-5" />
-        
-        <Container className="relative">
-          <div className="text-center max-w-2xl mx-auto px-4">
-            <h2 className="text-4xl lg:text-5xl font-display font-bold text-accent-white mb-6 lg:mb-8">
-              Elevate Your Legal Workflow Today
-            </h2>
-            <p className="text-lg lg:text-xl text-accent-white/80 mb-8 lg:mb-10">
-              Join the next generation of legal professionals using AI to enhance their practice.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <section className="relative overflow-hidden bg-emerald-900">
+        <WarpBackground 
+          className="py-32" 
+          beamsPerSide={6}
+          beamSize={3}
+          beamDuration={15}
+          beamDelayMax={10}
+          beamDelayMin={5}
+          perspective={200}
+          gridColor="rgba(52, 211, 153, 0.08)"
+        >
+          <Container>
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 drop-shadow-lg">
+                Ready to transform your legal practice?
+              </h2>
+              <p className="text-lg md:text-xl text-emerald-100 mb-8">
+                Join the next generation of legal professionals using AI to enhance their practice.
+              </p>
               <Button
                 variant="secondary"
                 size="lg"
                 onClick={() => loginWithRedirect()}
-                className="text-base sm:text-lg py-3 px-6 sm:py-4 sm:px-8 w-auto hover:opacity-90 transition-opacity"
+                className="px-8 py-4 bg-white/90 text-emerald-900 hover:bg-white font-medium rounded-xl
+                          transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/10"
               >
                 Get Started Now
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => navigate('/consultancy')}
-                className="text-base sm:text-lg py-3 px-6 sm:py-4 sm:px-8 w-auto !text-accent-white !border-accent-white 
-                          hover:!bg-accent-white/10 transition-opacity"
-              >
-                Learn More
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
-          </div>
-        </Container>
+          </Container>
+        </WarpBackground>
       </section>
     </div>
   );
 };
 
 export default Landing;
-
