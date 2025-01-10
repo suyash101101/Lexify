@@ -22,6 +22,7 @@ const ChatInterface = ({ isWidget = false }) => {
   const { startListening, stopListening, isListening } = useSpeechRecognition();
 
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
     if (!input.trim()) return;
     
