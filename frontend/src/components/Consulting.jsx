@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, MessageSquare, Mic, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Mic, X, Maximize2, Minimize2, Coins } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
+import { useAuth0 } from '@auth0/auth0-react';
 
 // Separate component for the chat interface to reuse in both places
 const ChatInterface = ({ isWidget = false }) => {
@@ -13,30 +14,45 @@ const ChatInterface = ({ isWidget = false }) => {
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { user, isAuthenticated } = useAuth0();
   const { startListening, stopListening, isListening } = useSpeechRecognition();
-
-  useEffect(() => {
-    return () => {
-      window.speechSynthesis.cancel();
-      if (isListening) {
-        stopListening();
-      }
-    };
-  }, [isListening]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!input.trim()) return;
+    
+    if (!isAuthenticated) {
+      setError("Please login to use the consultation service");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
-      const result = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
-        prompt: input
-      }, {
+      // Use credits for chat consulting
+      const creditResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/use-credits`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.sub,
+          service: 'chat_consulting'
+        }),
       });
+
+      const creditData = await creditResponse.json();
+      if (!creditData.success) {
+        setError("Not enough credits. Please purchase more credits to continue consulting.");
+        return;
+      }
+
+      const result = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
+        prompt: input,
+        userId: user.sub
+      });
+      
       setResponse(result.data);
       setInput('');
     } catch (error) {
@@ -135,6 +151,7 @@ const ChatInterface = ({ isWidget = false }) => {
             <>
               <Send className="w-4 h-4" />
               <span>Get Legal Advice</span>
+              (85 Lex Coins<Coins className="w-4 h-4" />)
             </>
           )}
         </motion.button>

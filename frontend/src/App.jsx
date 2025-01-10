@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import Navigation from './components/Navigation';
@@ -40,11 +40,19 @@ const PrivateRoute = ({ children }) => {
 
 const App = () => {
   const { isAuthenticated } = useAuth0();
+  const [publicRoutes, setPublicRoutes] = useState([]);
+
+  useEffect(() => {
+    setPublicRoutes(['/login', '/pricing', '/contactus', '/terms', '/privacy', '/blog', '/about']);
+  }, []);
 
   return (
     <>
       {/* Only show Navigation on public routes */}
       {!isAuthenticated && <Navigation />}
+      {publicRoutes.includes(location.pathname) && <Navigation />}
+
+
       
       <Routes>
         {/* Public Routes */}

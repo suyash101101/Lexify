@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { motion } from 'framer-motion';
-import { User, Mail, Key, Shield, CheckCircle, Calendar } from 'lucide-react';
+import { User, Mail, Key, Shield, CheckCircle, CreditCard } from 'lucide-react';
 import { Card } from './shared/Card';
 
 const ProfileCard = ({ icon: Icon, title, value }) => (
@@ -20,6 +20,22 @@ const ProfileCard = ({ icon: Icon, title, value }) => (
 
 const Profile = () => {
   const { user } = useAuth0();
+  const [credits, setCredits] = useState(null);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (user?.sub) {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/credits/${user.sub}`);
+          const data = await response.json();
+          setCredits(data.credits);
+        } catch (error) {
+          console.error('Error fetching credits:', error);
+        }
+      }
+    };
+    fetchCredits();
+  }, [user]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -97,6 +113,11 @@ const Profile = () => {
             icon={CheckCircle}
             title="Verification Status"
             value="Verified"
+          />
+          <ProfileCard
+            icon={CreditCard}
+            title="Available Credits"
+            value={credits !== null ? credits : 'Loading...'}
           />
         </div>
       </motion.div>

@@ -4,7 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { api } from '../services/api';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, AlertCircle, Award, MessageCircle, Mic } from 'lucide-react';
+import { Send, AlertCircle, Award, MessageCircle, Mic, Coins } from 'lucide-react';
 import { formatMarkdownResponse } from '../utils/formatMarkdown.jsx';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
@@ -21,6 +21,9 @@ const HAIChatInterface = () => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
   const [isCourtSpeaking, setIsCourtSpeaking] = useState(false);
+  const [userCredits, setUserCredits] = useState(null);
+  const [freeCasesLeft, setFreeCasesLeft] = useState(null);
+  const [hasStartedCase, setHasStartedCase] = useState(false);
   const messagesEndRef = useRef(null);
   const { user } = useAuth0();
   const { startListening, stopListening, isListening } = useSpeechRecognition();
@@ -106,18 +109,61 @@ const HAIChatInterface = () => {
   }, [lastMessage]);
 
   useEffect(() => {
+    if (user?.sub) {
+      fetchUserCredits();
+    }
+  }, [user]);
+
+  const fetchUserCredits = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/credits/${user.sub}`);
+      const data = await response.json();
+      setUserCredits(data.totalCredits);
+    } catch (error) {
+      console.error('Error fetching user credits:', error);
+      setError("Failed to fetch user credits");
+    }
+  };
+
+  useEffect(() => {
     const startSimulation = async () => {
       try {
-        const response = await api.startHAISimulation(caseId);
-        setGameState(response);
+        if (!hasStartedCase) {
+          // Use credits for case creation
+          const creditResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/use-credits`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.sub,
+              service: 'case_creation'
+            }),
+          });
+
+          const creditData = await creditResponse.json();
+          if (!creditData.success) {
+            setError("Not enough credits. Please purchase more credits to start a new case.");
+            return;
+          }
+
+          const response = await api.startHAISimulation(caseId, user.sub);
+          setGameState(response);
+          setHasStartedCase(true);
+          
+          // Update credits display
+          fetchUserCredits();
+        }
       } catch (e) {
         console.error("Error starting simulation:", e);
         setError("Failed to start simulation");
       }
     };
 
-    startSimulation();
-  }, [caseId]);
+    if (user?.sub) {
+      startSimulation();
+    }
+  }, [caseId, user, hasStartedCase]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -262,6 +308,27 @@ const HAIChatInterface = () => {
           <AlertCircle className="w-4 h-4 text-red-500 mr-2" />
           <span className="text-red-600 text-sm font-medium">{error}</span>
         </motion.div>
+      )}
+
+      {/* Credit Status Bar */}
+      {user && userCredits !== null && (
+        <div className="bg-black/5 px-4 py-2">
+          <div className="max-w-3xl mx-auto flex justify-between items-center text-sm">
+            <div className="space-x-4">
+              <span className="font-medium">Available Credits: {userCredits}</span>
+              <span className="text-black/60">Cost per case: 450 credits</span>
+            </div>
+            {userCredits < 450 && (
+              <button 
+                onClick={() => window.location.href = '/pricing'} 
+                className="text-blue-600 hover:underline flex items-center gap-1"
+              >
+                <Coins className="w-4 h-4" />
+                Buy More Credits
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Score Bar - Fixed at top */}
