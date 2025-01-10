@@ -4,6 +4,9 @@ import razorpay
 from datetime import datetime, timedelta
 import os
 from pydantic import BaseModel
+from typing import List
+from ...constants.credits import CREDIT_COSTS
+
 router = APIRouter()
 
 # Initialize Redis client
@@ -39,17 +42,14 @@ class UseCreditsResponse(BaseModel):
     remaining_credits: int
     deducted_credits: int   
 
+class CreditDeduction(BaseModel):
+    service: str
+    cost: int
+    timestamp: float
 
-# Credit costs for different operations
-CREDIT_COSTS = {
-    # Main services
-    'case_creation': 450,      # Initial case creation
-    'case_response': 50,       # Each AI response in the case
-    'chat_consulting': 85,     # Each consulting chat response
-    
-    # Default monthly credits
-    'monthly_free_credits': 1000
-}
+class BatchCreditUpdate(BaseModel):
+    user_id: str
+    deductions: List[CreditDeduction]
 
 async def get_or_create_user_credits(user_id: str) -> GetUserCreditsResponse:
     """Get or create user credits with monthly reset."""
@@ -101,7 +101,8 @@ async def use_credits(request: UseCreditsRequest) -> UseCreditsResponse:
         return UseCreditsResponse(
             success=False,
             message="Not enough credits",
-            remaining_credits=current_credits
+            remaining_credits=current_credits,
+            deducted_credits=0
         )
     
     # Deduct credits
@@ -160,3 +161,43 @@ async def verify_payment(request: VerifyPaymentRequest) -> dict:
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) 
+
+@router.post("/use-credits/batch")
+async def batch_use_credits(data: BatchCreditUpdate):
+    """
+    Batch process credit deductions.
+    This endpoint handles multiple credit deductions in a single request.
+    """
+    # Get current credits
+    credits = await redis_client.get(f"credits:{data.user_id}")
+    if credits is None:
+        credits = 1000  # Initialize with free credits
+    
+    credits = int(credits)
+
+    # Calculate total cost
+    total_cost = sum(deduction.cost for deduction in data.deductions)
+
+    # Check if user has enough credits
+    if credits < total_cost:
+        raise HTTPException(
+            status_code=400,
+            detail="Insufficient credits for batch operation"
+        )
+
+    # Deduct credits
+    new_credits = credits - total_cost
+    await redis_client.set(f"credits:{data.user_id}", new_credits)
+
+    # Store transaction history (optional)
+    for deduction in data.deductions:
+        await redis_client.lpush(
+            f"credit_history:{data.user_id}",
+            f"{deduction.service}:{deduction.cost}:{deduction.timestamp}"
+        )
+
+    return {
+        "success": True,
+        "remaining_credits": new_credits,
+        "total_deducted": total_cost
+    } 

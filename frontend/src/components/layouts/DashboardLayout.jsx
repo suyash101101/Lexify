@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -10,14 +10,13 @@ import {
   Menu,
   X,
   User,
-  CreditCard,
   Coins,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
 import { GlobalConsultingWidget } from '../Consulting';
 import { Button } from '../shared/Button';
-import { motion } from 'framer-motion';
+import { useCredits } from '../../context/CreditContext';
 
 const SidebarLink = ({ to, icon: Icon, children, onNavigate }) => {
   const location = useLocation();
@@ -58,40 +57,13 @@ const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCreditsExpanded, setIsCreditsExpanded] = useState(false);
   const { user, logout } = useAuth0();
-  const [credits, setCredits] = useState(null);
+  const { credits, CREDIT_COSTS } = useCredits();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchCredits = async () => {
-      if (user?.sub) {
-        try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/credits/${user.sub}`);
-          const data = await response.json();
-          setCredits(data.credits);
-        } catch (error) {
-          console.error('Error fetching credits:', error);
-        }
-      }
-    };
-
-    fetchCredits();
-    const interval = setInterval(fetchCredits, 60000);
-    return () => clearInterval(interval);
-  }, [user]);
 
   const handleMobileNavigate = () => {
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
-  };
-
-  // Format date to show days remaining
-  const getDaysRemaining = (nextReset) => {
-    if (!nextReset) return null;
-    const resetDate = new Date(nextReset);
-    const now = new Date();
-    const days = Math.ceil((resetDate - now) / (1000 * 60 * 60 * 24));
-    return days;
   };
 
   return (
@@ -162,14 +134,22 @@ const DashboardLayout = ({ children }) => {
                 
                 {isCreditsExpanded && (
                   <div className="pt-2 border-t border-black/5 mt-2 space-y-2">
-                    <h1 className="text-sm font-medium text-black">Credits Breakdown</h1>
+                    <h1 className="text-sm font-medium text-black">Credits Usage Breakdown</h1>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-black/60">Case Creation</span>
-                      <span className="font-medium">450 credits</span>
+                      <span className="font-medium">{CREDIT_COSTS.case_creation} credits</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-black/60">Chat Consulting</span>
-                      <span className="font-medium">85 credits</span>
+                      <span className="font-medium">{CREDIT_COSTS.chat_consulting} credits</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-black/60">Case Response</span>
+                      <span className="font-medium">{CREDIT_COSTS.case_response} credits</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-black/60">Courtroom Session</span>
+                      <span className="font-medium">100 credits</span>
                     </div>
                     <Button 
                       variant="outline" 
@@ -257,7 +237,7 @@ const DashboardLayout = ({ children }) => {
 };
 
 DashboardLayout.propTypes = {
-  children: PropTypes.node.isRequired,
+  children: PropTypes.node.isRequired
 };
 
 export default DashboardLayout; 

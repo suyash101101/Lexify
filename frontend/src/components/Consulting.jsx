@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Loader2, MessageSquare, Mic, X, Maximize2, Minimize2, Coins } from 'lucide-react';
@@ -7,6 +7,9 @@ import remarkGfm from 'remark-gfm';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
 import { useAuth0 } from '@auth0/auth0-react';
+import PropTypes from 'prop-types';
+import { useCredits } from '../context/CreditContext';
+import { toast } from 'react-hot-toast';
 
 // Separate component for the chat interface to reuse in both places
 const ChatInterface = ({ isWidget = false }) => {
@@ -15,51 +18,32 @@ const ChatInterface = ({ isWidget = false }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user, isAuthenticated } = useAuth0();
+  const { deductCredits, CREDIT_COSTS } = useCredits();
   const { startListening, stopListening, isListening } = useSpeechRecognition();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
     
-    if (!isAuthenticated) {
-      setError("Please login to use the consultation service");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    
     try {
       // Use credits for chat consulting
-      const creditResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/use-credits`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.sub,
-          service: 'chat_consulting'
-        }),
-      });
-
-      const creditData = await creditResponse.json();
-      if (!creditData.success) {
-        setError("Not enough credits. Please purchase more credits to continue consulting.");
+      const result = await deductCredits('chat_consulting');
+      if (!result.success) {
+        toast.error(result.message || "Not enough credits. Please purchase more credits to continue.");
         return;
       }
 
-      const result = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
-        prompt: input,
-        userId: user.sub
+      // If credit deduction successful, proceed with sending message
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/chat`, {
+        message: input,
+        user_id: user.sub
       });
-      
-      setResponse(result.data);
+
+      setResponse(response.data.response);
       setInput('');
     } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to get response. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Error processing chat:', error);
+      toast.error(error.response?.data?.detail || 'Failed to process your message. Please try again.');
     }
   };
 
@@ -150,8 +134,8 @@ const ChatInterface = ({ isWidget = false }) => {
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span>Get Legal Advice</span>
-              (85 Lex Coins<Coins className="w-4 h-4" />)
+              <span>Get Legal Advice ({CREDIT_COSTS.chat_consulting} Credits)</span>
+              <Coins className="w-4 h-4" />
             </>
           )}
         </motion.button>
@@ -224,6 +208,14 @@ const ChatInterface = ({ isWidget = false }) => {
       )}
     </div>
   );
+};
+
+ChatInterface.propTypes = {
+  isWidget: PropTypes.bool
+};
+
+ChatInterface.defaultProps = {
+  isWidget: false
 };
 
 // Global widget component

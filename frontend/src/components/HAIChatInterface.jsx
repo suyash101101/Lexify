@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth0 } from '@auth0/auth0-react';
 import { api } from '../services/api';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, AlertCircle, Award, MessageCircle, Mic, Coins } from 'lucide-react';
-import { formatMarkdownResponse } from '../utils/formatMarkdown.jsx';
+import { Send, AlertCircle, Award, MessageCircle, Mic } from 'lucide-react';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
 import { Gavel } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
+import toast from 'react-hot-toast';
+import { useCredits } from '../context/CreditContext';
 
 const HAIChatInterface = () => {
   const case_id = useParams();
@@ -21,15 +21,14 @@ const HAIChatInterface = () => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
   const [isCourtSpeaking, setIsCourtSpeaking] = useState(false);
-  const [userCredits, setUserCredits] = useState(null);
-  const [freeCasesLeft, setFreeCasesLeft] = useState(null);
   const [hasStartedCase, setHasStartedCase] = useState(false);
   const messagesEndRef = useRef(null);
   const { user } = useAuth0();
   const { startListening, stopListening, isListening } = useSpeechRecognition();
   const endRef = useRef(null);
+  const { deductCredits, CREDIT_COSTS } = useCredits();
 
-  const { sendMessage, lastMessage, connectionStatus } = useWebSocket(
+  const { sendMessage, lastMessage } = useWebSocket(
     `${import.meta.env.VITE_WS_URL}/ws/hai/${caseId}/${user?.sub}`
   );
 
@@ -109,73 +108,55 @@ const HAIChatInterface = () => {
   }, [lastMessage]);
 
   useEffect(() => {
-    if (user?.sub) {
-      fetchUserCredits();
-    }
-  }, [user]);
-
-  const fetchUserCredits = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/credits/${user.sub}`);
-      const data = await response.json();
-      setUserCredits(data.totalCredits);
-    } catch (error) {
-      console.error('Error fetching user credits:', error);
-      setError("Failed to fetch user credits");
-    }
-  };
-
-  useEffect(() => {
     const startSimulation = async () => {
       try {
         if (!hasStartedCase) {
-          // Use credits for case creation
-          const creditResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/use-credits`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: user.sub,
-              service: 'case_creation'
-            }),
-          });
-
-          const creditData = await creditResponse.json();
-          if (!creditData.success) {
-            setError("Not enough credits. Please purchase more credits to start a new case.");
+          // Use credits for starting courtroom session
+          const success = await deductCredits('courtroom_session');
+          if (!success) {
+            toast.error("Not enough credits. Please purchase more credits to start a new case.");
             return;
           }
 
           const response = await api.startHAISimulation(caseId, user.sub);
           setGameState(response);
           setHasStartedCase(true);
-          
-          // Update credits display
-          fetchUserCredits();
         }
       } catch (e) {
         console.error("Error starting simulation:", e);
-        setError("Failed to start simulation");
+        toast.error("Failed to start simulation");
       }
     };
 
     if (user?.sub) {
       startSimulation();
     }
-  }, [caseId, user, hasStartedCase]);
+  }, [caseId, user, hasStartedCase, deductCredits]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
     
-    sendMessage(JSON.stringify({
-      type: 'human_input',
-      content: input //this is what the user types in the input box
-    }));
-    
-    setInput('');
-    setIsCourtSpeaking(true);
+    try {
+      // Use credits for case response
+      const result = await deductCredits('case_response');
+      if (!result.success) {
+        toast.error(result.message || "Not enough credits. Please purchase more credits to continue.");
+        return;
+      }
+
+      // If credit deduction successful, proceed with sending message
+      sendMessage(JSON.stringify({
+        type: 'human_input',
+        content: input
+      }));
+      
+      setInput('');
+      setIsCourtSpeaking(true);
+    } catch (error) {
+      console.error('Error processing response:', error);
+      toast.error('Failed to process your response. Please try again.');
+    }
   };
 
   const handleVoiceInput = () => {
@@ -198,23 +179,6 @@ const HAIChatInterface = () => {
     }
   },[gameState?.case_status])
 
-  const formatMessage = (content) => (
-    <article className="prose prose-sm max-w-none
-      prose-headings:font-semibold prose-headings:text-inherit
-      prose-p:text-inherit prose-p:leading-relaxed
-      prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4
-      prose-ol:my-2 prose-ol:pl-4
-      prose-li:my-0.5
-      prose-strong:font-semibold prose-strong:text-inherit
-      prose-blockquote:border-l-4 prose-blockquote:border-current/20
-      prose-blockquote:pl-4 prose-blockquote:italic"
-    >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {content}
-      </ReactMarkdown>
-    </article>
-  );
-
   const formatMarkdown = (content) => (
     <article className="prose prose-sm max-w-none
       prose-headings:font-semibold prose-headings:text-inherit
@@ -232,57 +196,6 @@ const HAIChatInterface = () => {
     </article>
   );
 
-  const renderMessage = (msg, idx) => (
-    <motion.div
-      key={idx}
-      initial={{ x: msg.speaker === 'human' ? 20 : -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 500, damping: 50 }}
-      className={`mb-4 ${
-        msg.speaker === 'human' ? 'ml-auto' : 'mr-auto'
-      } max-w-[80%]`}
-    >
-      <div className={`rounded-xl p-4 ${
-        msg.speaker === 'human' 
-          ? 'bg-blue-50 text-blue-800 ml-auto' 
-          : msg.speaker === 'judge' 
-          ? msg.isComment
-            ? 'bg-purple-50/80 text-purple-800 border-l-4 border-purple-300'
-            : 'bg-purple-50 text-purple-800'
-          : 'bg-green-50 text-green-800'
-      }`}>
-        <div className="font-medium text-sm mb-1 flex justify-between items-center">
-          <span>
-            {msg.speaker === 'ai' ? 'AI Lawyer' : 
-             msg.speaker === 'human' ? 'You' : 
-             msg.isComment ? 'Judge\'s Comment' : 'Judge'}
-          </span>
-          {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
-            <VoiceButton text={msg.content} />
-          )}
-        </div>
-        <div className="text-gray-700">
-          {msg.content}
-        </div>
-        {msg.context && (
-          <motion.div 
-            initial={{ height: 0 }}
-            animate={{ height: "auto" }}
-            className="mt-2 text-sm text-gray-600 border-t border-gray-200 pt-2"
-          >
-            <strong>Supporting Context:</strong>
-            <p>{msg.context}</p>
-          </motion.div>
-        )}
-        {msg.score !== undefined && (
-          <div className="mt-2 text-sm text-gray-600">
-            Score Impact: {msg.score > 0 ? '+' : ''}{msg.score.toFixed(2)}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-
   // Add cleanup effect
   useEffect(() => {
     return () => {
@@ -292,6 +205,14 @@ const HAIChatInterface = () => {
       }
     };
   }, [isListening]);
+
+  // Update error handling to use toast
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError(null); // Clear the error after showing toast
+    }
+  }, [error]);
 
   return (
     <motion.div 
@@ -311,7 +232,7 @@ const HAIChatInterface = () => {
       )}
 
       {/* Credit Status Bar */}
-      {user && userCredits !== null && (
+      {/* {user && userCredits !== null && (
         <div className="bg-black/5 px-4 py-2">
           <div className="max-w-3xl mx-auto flex justify-between items-center text-sm">
             <div className="space-x-4">
@@ -329,7 +250,7 @@ const HAIChatInterface = () => {
             )}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Score Bar - Fixed at top */}
       <div className="sticky top-0 z-40 bg-white border-b border-black/5">
@@ -462,6 +383,9 @@ const HAIChatInterface = () => {
                 rows="2"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <span className="text-xs text-gray-500 mr-2">
+                  {CREDIT_COSTS.case_response} credits
+                </span>
                 <motion.button
                   type="button"
                   onClick={handleVoiceInput}

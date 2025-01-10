@@ -140,27 +140,23 @@ const Pricing = () => {
   ];
 
   const handlePurchase = async (amount, credits, packageName) => {
-    if (packageName === "Law Firm") {
-      window.location.href = "mailto:lexifyai.in@gmail.com?subject=Law%20Firm%20Plan%20Inquiry";
-      return;
-    }
-
     if (!isAuthenticated) {
-      loginWithRedirect();
+      toast.error('Please login to purchase credits');
       return;
     }
 
     setIsProcessing(true);
-    const res = await loadRazorpay();
 
-    if (!res) {
-      alert('Razorpay SDK failed to load');
-      setIsProcessing(false);
-      return;
-    }
     try {
+      // Load Razorpay script
+      const res = await loadRazorpay();
+      if (!res) {
+        toast.error('Razorpay SDK failed to load. Please try again later.');
+        return;
+      }
+
       // Create order
-      const orderResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/create-order`, {
+      const orderData = await fetch(`${import.meta.env.VITE_API_URL}/api/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,15 +167,13 @@ const Pricing = () => {
           package_name: packageName,
           user_id: user.sub
         }),
-      });
+      }).then(t => t.json());
 
-      if (!orderResponse.ok) {
-        throw new Error('Failed to create order');
+      if (!orderData.order_id) {
+        toast.error('Could not create order. Please try again.');
+        return;
       }
 
-      const orderData = await orderResponse.json();
-      
-      // Initialize Razorpay
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: parseInt(amount.replace(/,/g, '')) * 100, // Convert to paise
@@ -210,6 +204,8 @@ const Pricing = () => {
             const verifyData = await verifyResponse.json();
             if (verifyData.success) {
               toast.success('Payment successful! Credits added to your account.');
+            } else {
+              toast.error('Payment verification failed. Please contact support.');
             }
           } catch (error) {
             console.error('Payment verification error:', error);
@@ -223,13 +219,21 @@ const Pricing = () => {
         theme: {
           color: "#000000",
         },
+        modal: {
+          ondismiss: function() {
+            toast.error('Payment cancelled. Please try again if you wish to purchase credits.');
+            setIsProcessing(false);
+          }
+        }
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
     } catch (error) {
-      console.error('Purchase error:', error);
-      toast.error('Failed to initiate purchase. Please try again.');
+      console.error('Error during purchase:', error);
+      toast.error('Failed to process purchase. Please try again later.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 

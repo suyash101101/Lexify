@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { motion } from 'framer-motion';
 import { User, Mail, Key, Shield, CheckCircle, CreditCard } from 'lucide-react';
 import { Card } from './shared/Card';
+import { useCredits } from '../context/CreditContext';
+import PropTypes from 'prop-types';
 
 const ProfileCard = ({ icon: Icon, title, value }) => (
   <Card hover={false} className="p-4">
@@ -18,24 +20,15 @@ const ProfileCard = ({ icon: Icon, title, value }) => (
   </Card>
 );
 
+ProfileCard.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  title: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired
+};
+
 const Profile = () => {
   const { user } = useAuth0();
-  const [credits, setCredits] = useState(null);
-
-  useEffect(() => {
-    const fetchCredits = async () => {
-      if (user?.sub) {
-        try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/credits/${user.sub}`);
-          const data = await response.json();
-          setCredits(data.credits);
-        } catch (error) {
-          console.error('Error fetching credits:', error);
-        }
-      }
-    };
-    fetchCredits();
-  }, [user]);
+  const { credits } = useCredits();
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -99,11 +92,6 @@ const Profile = () => {
             title="User ID"
             value={user?.sub}
           />
-          {/* <ProfileCard
-            icon={Calendar}
-            title="Member Since"
-            value={new Date(user?.updated_at).toLocaleDateString()}
-          /> */}
           <ProfileCard
             icon={Shield}
             title="Account Type"
@@ -117,7 +105,7 @@ const Profile = () => {
           <ProfileCard
             icon={CreditCard}
             title="Available Credits"
-            value={credits !== null ? credits : 'Loading...'}
+            value={credits !== null ? credits.toString() : 'Loading...'}
           />
         </div>
       </motion.div>

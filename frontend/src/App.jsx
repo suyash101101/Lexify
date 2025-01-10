@@ -38,6 +38,7 @@ const PrivateRoute = ({ children }) => {
   return <DashboardLayout>{children}</DashboardLayout>;
 };
 
+
 const App = () => {
   const { isAuthenticated } = useAuth0();
   const [publicRoutes, setPublicRoutes] = useState([]);
@@ -45,7 +46,6 @@ const App = () => {
   useEffect(() => {
     setPublicRoutes(['/login', '/pricing', '/contactus', '/terms', '/privacy', '/blog', '/about']);
   }, []);
-
   return (
     <>
       {/* Only show Navigation on public routes */}
