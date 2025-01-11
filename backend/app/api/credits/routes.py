@@ -1,16 +1,13 @@
 from fastapi import APIRouter, HTTPException
-import redis.asyncio as redis
 import razorpay
 from datetime import datetime, timedelta
 import os
 from pydantic import BaseModel
 from typing import List
 from ...constants.credits import CREDIT_COSTS
+from ...db.postgres_db import postgres_client
 
 router = APIRouter()
-
-# Initialize Redis client
-redis_client = redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379'))
 
 # Initialize Razorpay client
 razorpay_client = razorpay.Client(
@@ -53,31 +50,20 @@ class BatchCreditUpdate(BaseModel):
 
 async def get_or_create_user_credits(user_id: str) -> GetUserCreditsResponse:
     """Get or create user credits with monthly reset."""
-    credits_key = f"user:{user_id}:credits"
-    last_reset_key = f"user:{user_id}:last_reset"
-
-    # Get last reset time
-    last_reset = await redis_client.get(last_reset_key)
+    credits = postgres_client.get_user_credits(user_id)
     
-    # Check if user exists or needs monthly reset
-    if not last_reset or (
-        datetime.now() - datetime.fromisoformat(last_reset.decode('utf-8')) > timedelta(days=30)
-    ):
-        # New user or monthly reset needed
-        await redis_client.set(credits_key, CREDIT_COSTS['monthly_free_credits'])
-        await redis_client.set(last_reset_key, datetime.now().isoformat())
+    if credits is None:
+        # New user - initialize with free credits
+        postgres_client.update_user_credits(user_id, CREDIT_COSTS['monthly_free_credits'])
+        postgres_client.update_credits_last_reset(user_id)
         return GetUserCreditsResponse(
             credits=CREDIT_COSTS['monthly_free_credits'],
             next_reset=(datetime.now() + timedelta(days=30)).isoformat()
         )
     
-    # Get current credits
-    credits = int(await redis_client.get(credits_key) or 0)
-    next_reset = datetime.fromisoformat(last_reset.decode('utf-8')) + timedelta(days=30)
-    
     return GetUserCreditsResponse(
         credits=credits,
-        next_reset=next_reset.isoformat()
+        next_reset=(datetime.now() + timedelta(days=30)).isoformat()
     )
 
 @router.get("/user/credits/{user_id}")
@@ -92,10 +78,7 @@ async def use_credits(request: UseCreditsRequest) -> UseCreditsResponse:
         raise HTTPException(status_code=400, detail="Invalid service")
     
     cost = CREDIT_COSTS[request.service]
-    credits_key = f"user:{request.user_id}:credits"
-    
-    # Get current credits
-    current_credits = int(await redis_client.get(credits_key) or 0)
+    current_credits = postgres_client.get_user_credits(request.user_id) or 0
     
     if current_credits < cost:
         return UseCreditsResponse(
@@ -106,7 +89,24 @@ async def use_credits(request: UseCreditsRequest) -> UseCreditsResponse:
         )
     
     # Deduct credits
-    new_balance = await redis_client.decrby(credits_key, cost)
+    new_balance = current_credits - cost
+    postgres_client.update_user_credits(request.user_id, new_balance)
+    
+    # Log transaction
+    postgres_client.add_transaction(
+        user_id=request.user_id,
+        transaction_type="DEBIT",
+        amount=cost,
+        description=f"Used credits for {request.service}"
+    )
+    
+    # Log activity
+    postgres_client.log_activity(
+        user_id=request.user_id,
+        activity_type="USE_CREDITS",
+        description=f"Used {cost} credits for {request.service}",
+        metadata={"service": request.service, "cost": cost}
+    )
     
     return UseCreditsResponse(
         success=True,
@@ -151,8 +151,30 @@ async def verify_payment(request: VerifyPaymentRequest) -> dict:
         credits = int(order['notes']['credits'])
         
         # Add credits to user account
-        credits_key = f"user:{user_id}:credits"
-        new_balance = await redis_client.incrby(credits_key, credits)
+        current_credits = postgres_client.get_user_credits(user_id) or 0
+        new_balance = current_credits + credits
+        postgres_client.update_user_credits(user_id, new_balance)
+        
+        # Log transaction
+        postgres_client.add_transaction(
+            user_id=user_id,
+            transaction_type="CREDIT",
+            amount=credits,
+            description=f"Purchased {credits} credits",
+            reference_id=request.payment_id
+        )
+        
+        # Log activity
+        postgres_client.log_activity(
+            user_id=user_id,
+            activity_type="PURCHASE_CREDITS",
+            description=f"Purchased {credits} credits via Razorpay",
+            metadata={
+                "payment_id": request.payment_id,
+                "order_id": request.order_id,
+                "credits": credits
+            }
+        )
         
         return {
             "success": True,
@@ -160,7 +182,7 @@ async def verify_payment(request: VerifyPaymentRequest) -> dict:
             "new_balance": new_balance
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/use-credits/batch")
 async def batch_use_credits(data: BatchCreditUpdate):
@@ -169,35 +191,30 @@ async def batch_use_credits(data: BatchCreditUpdate):
     This endpoint handles multiple credit deductions in a single request.
     """
     # Get current credits
-    credits = await redis_client.get(f"credits:{data.user_id}")
-    if credits is None:
-        credits = 1000  # Initialize with free credits
-    
-    credits = int(credits)
+    current_credits = postgres_client.get_user_credits(data.user_id) or 0
 
     # Calculate total cost
     total_cost = sum(deduction.cost for deduction in data.deductions)
 
     # Check if user has enough credits
-    if credits < total_cost:
+    if current_credits < total_cost:
         raise HTTPException(
             status_code=400,
             detail="Insufficient credits for batch operation"
         )
 
     # Deduct credits
-    new_credits = credits - total_cost
-    await redis_client.set(f"credits:{data.user_id}", new_credits)
-
-    # Store transaction history (optional)
-    for deduction in data.deductions:
-        await redis_client.lpush(
-            f"credit_history:{data.user_id}",
-            f"{deduction.service}:{deduction.cost}:{deduction.timestamp}"
-        )
+    new_credits = current_credits - total_cost
+    postgres_client.update_user_credits(data.user_id, new_credits)
 
     return {
         "success": True,
         "remaining_credits": new_credits,
         "total_deducted": total_cost
     } 
+
+# Add new endpoint to get transaction history
+@router.get("/transactions/{user_id}")
+async def get_transactions(user_id: str, limit: int = 50):
+    """Get user's transaction history"""
+    return postgres_client.get_user_transactions(user_id, limit) 

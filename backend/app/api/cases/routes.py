@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import uuid
-
-
+import os
+from ..content_verification.main import ContentVerification
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -16,12 +16,16 @@ from reportlab.platypus import (
 )
 from reportlab.platypus.para import Paragraph
 from reportlab.platypus.flowables import KeepTogether
-import os
-from ..content_verification.main import ContentVerification
 
+from ...schema.schemas import (
+    CaseCreateSchema, 
+    EvidenceSubmissionSchema, 
+    LawyerType,
+    CaseStatus
+)
+from ...db.postgres_db import postgres_client
 
-
-
+router = APIRouter()
 
 def generate_case_pdf(case: dict) -> str:
     """
@@ -79,21 +83,10 @@ def generate_case_pdf(case: dict) -> str:
     doc.build(elements)
     return pdf_filename
 
-
-from ...schema.schemas import (
-    CaseCreateSchema, 
-    EvidenceSubmissionSchema, 
-    LawyerType,
-    CaseStatus
-)
-from ...db.redis_db import redis_client
-
-router = APIRouter()
-
 @router.get("/{case_id}")
 async def get_case(case_id: str):
     """Retrieves full case details"""
-    case = redis_client.get_case(case_id)
+    case = postgres_client.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
@@ -101,7 +94,7 @@ async def get_case(case_id: str):
 @router.get("/")
 async def list_cases():
     """Lists all cases"""
-    return redis_client.list_cases()
+    return postgres_client.list_cases()
 
 @router.post("/create")
 async def create_case(case_data: CaseCreateSchema):
@@ -135,15 +128,14 @@ async def create_case(case_data: CaseCreateSchema):
         verification_results = content_verifier.verify_content(file_path, reference_path)
         print(verification_results)
 
-
         case_obj = {
             "case_id": case_id,
             "title": case_data.title,
             "description": case_data.description,
-            "lawyer1_address": case_data.lawyer1_address, # this is going to be gotten form the auth id from google or somethign like that 
+            "lawyer1_address": case_data.lawyer1_address,
             "lawyer1_evidences": [
                 {
-                    "ipfs_hash": file.ipfs_hash, # this will be changed later once we swtich to buckets or somethign like that 
+                    "ipfs_hash": file.ipfs_hash,
                     "description": file.description,
                     "original_name": file.original_name,
                     "submitted_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -151,19 +143,18 @@ async def create_case(case_data: CaseCreateSchema):
             ],
             "lawyer2_evidences": [
                 {
-                    "ipfs_hash": file.ipfs_hash, # this will be changed later once we swtich to buckets or somethign like that 
+                    "ipfs_hash": file.ipfs_hash,
                     "description": file.description,
                     "original_name": file.original_name,
                     "submitted_at": datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 } for file in case_data.lawyer2_files
-            ],#this will be given to the lawyer itself 
+            ],
             "case_status": case_data.case_status,
             "created_at": datetime.now().astimezone().strftime("%d-%m-%Y %H:%M:%S %Z"),
             "updated_at": datetime.now().astimezone().strftime("%d-%m-%Y %H:%M:%S %Z")
         }
         
-        #here add the thing in order to put the particular case into the database 
-        saved_case = redis_client.create_case(case_id, case_obj)
+        saved_case = postgres_client.create_case(case_id, case_obj)
         generate_case_pdf(case_obj)
         print(saved_case)
         
@@ -178,7 +169,7 @@ async def create_case(case_data: CaseCreateSchema):
 @router.post("/{case_id}/evidence")
 async def submit_evidence(case_id: str, evidence_data: EvidenceSubmissionSchema):
     """Submits additional evidence to an existing case"""
-    case = redis_client.get_case(case_id)
+    case = postgres_client.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     
@@ -197,12 +188,9 @@ async def submit_evidence(case_id: str, evidence_data: EvidenceSubmissionSchema)
         } for evidence in evidence_data.evidences
     ]
 
-
     if evidence_data.lawyer_type == LawyerType.AI:
-        # AI evidence goes to lawyer2
         case["lawyer2_evidences"].extend(evidence_with_timestamp)
     else:
-        # Human evidence goes to lawyer1
         if evidence_data.lawyer_address == case["lawyer1_address"]:
             case["lawyer1_evidences"].extend(evidence_with_timestamp)
         else:
@@ -210,52 +198,38 @@ async def submit_evidence(case_id: str, evidence_data: EvidenceSubmissionSchema)
                 status_code=403,
                 detail="Only registered lawyers can submit evidence"
             )
-
     
     case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     
-    updated_case = redis_client.update_case(case_id, case)
+    updated_case = postgres_client.update_case(case_id, case)
     generate_case_pdf(case)
-
-
-
-    # here the only change would be how the whole thing is being stored atm and like how it is working atm 
     
     return updated_case
 
 @router.patch("/{case_id}/status")
 async def update_case_status(case_id: str, status: dict):
     """Updates the status of a case"""
-    case = redis_client.get_case(case_id)
+    case = postgres_client.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     
     case["case_status"] = status["status"]
     case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     
-    updated_case = redis_client.update_case(case_id, case)
+    updated_case = postgres_client.update_case(case_id, case)
     generate_case_pdf(case)
-
     
     return updated_case
 
 @router.delete("/{case_id}")
 async def delete_case(case_id: str):
     """Deletes a case and all associated data"""
-    case = redis_client.get_case(case_id)
+    case = postgres_client.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     
     try:
-        # Delete case from Redis
-        redis_client.delete_case(case_id)
-        
-        # Delete case files and directories
-        case_dir = f'app/case_reports/{case_id}'
-        if os.path.exists(case_dir):
-            import shutil
-            shutil.rmtree(case_dir)
-        
+        postgres_client.delete_case(case_id)
         return {"message": "Case deleted successfully"}
     except Exception as e:
         raise HTTPException(
@@ -266,30 +240,14 @@ async def delete_case(case_id: str):
 @router.patch("/{case_id}")
 async def update_case(case_id: str, case_data: dict):
     """Updates case details"""
-    case = redis_client.get_case(case_id)
+    case = postgres_client.get_case(case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     
-    try:
-        # Update allowed fields
-        if "title" in case_data:
-            case["title"] = case_data["title"]
-        if "description" in case_data:
-            case["description"] = case_data["description"]
-        if "case_status" in case_data:
-            case["case_status"] = case_data["case_status"]
-        
-        case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-        
-        # Update case in Redis
-        updated_case = redis_client.update_case(case_id, case)
-        
-        # Regenerate PDF with updated information
-        generate_case_pdf(case)
-        
-        return updated_case
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating case: {str(e)}"
-        )
+    case.update(case_data)
+    case["updated_at"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    
+    updated_case = postgres_client.update_case(case_id, case)
+    generate_case_pdf(case)
+    
+    return updated_case
