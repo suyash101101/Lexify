@@ -40,15 +40,15 @@ const ProductCard = ({ title, subtitle, description, imagePath }) => (
   <div className="sticky top-0 min-h-screen flex items-center justify-center">
     <div className="w-full max-w-5xl mx-auto px-4">
       <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-8 md:p-12">
+        <div className="p-6 sm:p-8 md:p-12">
           <div className="space-y-3">
             <div className="text-emerald-600 font-medium text-sm">{subtitle}</div>
-            <h3 className="text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">{title}</h3>
-            <p className="text-gray-600 text-lg max-w-2xl">{description}</p>
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">{title}</h3>
+            <p className="text-gray-600 text-base sm:text-lg max-w-2xl">{description}</p>
           </div>
         </div>
 
-        <div className="relative bg-gradient-to-b from-gray-50 to-white p-6">
+        <div className="relative bg-gradient-to-b from-gray-50 to-white p-4 sm:p-6">
           <div className="rounded-xl overflow-hidden shadow-lg">
             <img 
               src={`/product_demo/${imagePath}`}
@@ -152,89 +152,65 @@ const Landing = () => {
           <img 
             src={hero}
             alt="AI Legal Background"
-            className="w-full h-full object-cover opacity-100"
+            className="md:w-full md:h-full w-96 h-96 object-cover opacity-100"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-white via-white/50 to-[#fcfcfd]" />
         </div>
         
         <Container className="relative z-20">
-          <div className="max-w-3xl mx-auto text-center space-y-8 pt-40">
+          <div className="max-w-3xl mx-auto text-center space-y-8 pt-20 sm:pt-32 md:pt-40">
             <div className="relative">
-              {/* Desktop Icons - Evenly spaced in a balanced layout */}
-              {/* Left Column */}
+              {/* Desktop Icons - Only visible on large screens */}
               <FloatingIcon 
                 icon={Scale} 
-                className="hidden md:block -left-52 top-8"
+                className="hidden lg:block -left-52 top-8"
                 style={1}
               />
               <FloatingIcon 
                 icon={Briefcase} 
-                className="hidden md:block -left-36 top-32"
+                className="hidden lg:block -left-36 top-32"
                 style={2}
               />
               <FloatingIcon 
                 icon={BookOpenCheck} 
-                className="hidden md:block -left-48 top-56"
+                className="hidden lg:block -left-48 top-56"
                 style={3}
               />
               <FloatingIcon 
                 icon={Gavel} 
-                className="hidden md:block -left-32 top-80"
+                className="hidden lg:block -left-32 top-80"
                 style={7}
               />
               <FloatingIcon 
                 icon={ScrollText} 
-                className="hidden md:block -left-44 top-[26rem]"
+                className="hidden lg:block -left-44 top-[26rem]"
                 style={8}
               />
 
-              {/* Right Column */}
               <FloatingIcon 
                 icon={Building2} 
-                className="hidden md:block -right-52 top-8"
+                className="hidden lg:block -right-52 top-8"
                 style={4}
               />
               <FloatingIcon 
                 icon={ShieldCheck} 
-                className="hidden md:block -right-36 top-32"
+                className="hidden lg:block -right-36 top-32"
                 style={5}
               />
               <FloatingIcon 
                 icon={BookOpenCheck} 
-                className="hidden md:block -right-48 top-56"
+                className="hidden lg:block -right-48 top-56"
                 style={6}
               />
               <FloatingIcon 
                 icon={Scale} 
-                className="hidden md:block -right-32 top-80"
+                className="hidden lg:block -right-32 top-80"
                 style={1}
               />
               <FloatingIcon 
                 icon={Briefcase} 
-                className="hidden md:block -right-44 top-[26rem]"
+                className="hidden lg:block -right-44 top-[26rem]"
                 style={2}
-              />
-
-              {/* Mobile Icons - Strategically placed */}
-              <FloatingIcon 
-                icon={Scale} 
-                className="md:hidden absolute -left-6 top-20 scale-90"
-                style={1}
-              />
-              <FloatingIcon 
-                icon={Briefcase} 
-                className="md:hidden absolute -left-2 top-48 scale-85"
-                style={2}
-              />
-              <FloatingIcon 
-                icon={Gavel} 
-                className="md:hidden absolute -right-6 top-20 scale-90"
-                style={7}
-              />
-              <FloatingIcon 
-                icon={ShieldCheck} 
-                className="md:hidden absolute -right-2 top-48 scale-85"
-                style={5}
               />
 
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 text-emerald-900 text-sm font-medium">
@@ -247,13 +223,13 @@ const Landing = () => {
                 </a>
               </div>
 
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 tracking-tight mt-8">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 tracking-tight mt-8">
                 Unlock your
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-emerald-900"> legal </span>
                 potential
               </h1>
               
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto mt-8">
+              <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mt-8">
                 Practice, learn, and excel with AI powered court simulations at your fingertips
               </p>
 
@@ -262,7 +238,7 @@ const Landing = () => {
                   variant="primary"
                   size="lg"
                   onClick={() => loginWithRedirect()}
-                  className="px-8 py-4 bg-emerald-900 hover:bg-emerald-800 text-white font-medium rounded-xl
+                  className="px-6 sm:px-8 py-3 sm:py-4 bg-emerald-900 hover:bg-emerald-800 text-white font-medium rounded-xl
                             transition-all duration-200 shadow-lg shadow-emerald-900/10"
                 >
                   Get started free
@@ -281,11 +257,11 @@ const Landing = () => {
         </div>
         
         <Container className="relative">
-          <div className="text-center py-20 lg:py-32">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center py-16 sm:py-20 lg:py-32">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Designed for modern legal practice
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
               Comprehensive tools and features to enhance your legal journey
             </p>
           </div>
@@ -301,7 +277,7 @@ const Landing = () => {
       {/* CTA Section */}
       <section className="relative overflow-hidden bg-emerald-900">
         <WarpBackground 
-          className="py-32" 
+          className="py-10 sm:py-20 md:py-24 lg:py-32" 
           beamsPerSide={6}
           beamSize={3}
           beamDuration={15}
@@ -310,26 +286,26 @@ const Landing = () => {
           perspective={200}
           gridColor="rgba(52, 211, 153, 0.08)"
         >
-          <Container>
-            <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 drop-shadow-lg">
+       
+            <div className="max-w-2xl md:max-w-5xl mx-auto text-center sm:px-6 lg:px-8">
+              <h2 className=" text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 sm:mb-6 drop-shadow-lg">
                 Ready to transform your legal practice?
               </h2>
-              <p className="text-lg md:text-xl text-emerald-100 mb-8">
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-emerald-100 mb-6 sm:mb-8">
                 Join the next generation of legal professionals using AI to enhance their practice.
               </p>
               <Button
                 variant="secondary"
                 size="lg"
                 onClick={() => loginWithRedirect()}
-                className="px-8 py-4 bg-white/90 text-emerald-900 hover:bg-white font-medium rounded-xl
-                          transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/10"
+                className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 md:py-4 bg-white/90 text-emerald-900 hover:bg-white 
+                          font-medium rounded-xl transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/10"
               >
-                Get Started Now
-                <ArrowRight className="w-5 h-5 ml-2" />
+                Get Started
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </Button>
             </div>
-          </Container>
+ 
         </WarpBackground>
       </section>
     </div>
