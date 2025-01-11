@@ -7,11 +7,13 @@ from datetime import datetime
 
 class PostgresClient:
     def __init__(self):
+        # Parse the connection URL to remove the supa parameter
+        conn_url = os.environ.get("POSTGRES_URL")
+        if conn_url and "supa=base-pooler.x" in conn_url:
+            conn_url = conn_url.replace("&supa=base-pooler.x", "")
+            
         self.conn = psycopg2.connect(
-            host=os.getenv("POSTGRES_HOST"),
-            database=os.getenv("POSTGRES_DATABASE"),
-            user=os.getenv("POSTGRES_USER"),
-            password=os.getenv("POSTGRES_PASSWORD"),
+            dsn=conn_url,
             sslmode="require"
         )
         self._create_tables()
@@ -197,4 +199,4 @@ class PostgresClient:
             """, (user_id, limit))
             return cur.fetchall()
 
-postgres_client = PostgresClient() 
+postgres_client = PostgresClient()

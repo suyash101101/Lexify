@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     redis_port: int
 
     # PostgreSQL settings
+    next_public_supabase_url: str
+    next_public_supabase_anon_key: str
     postgres_url: str
     postgres_prisma_url: str
     postgres_url_non_pooling: str
