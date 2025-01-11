@@ -18,7 +18,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from io import BytesIO
 import re
-from ..db.redis_db import redis_client
+from ..db.postgres_db import postgres_client
 
 load_dotenv()
 
@@ -334,6 +334,11 @@ class Judge:
         )
 
     async def process_input(self, request: ProcessInputRequest):
+        """Process input from either human or AI lawyer"""
+        case = postgres_client.get_case(request.case_id)
+        if not case:
+            raise HTTPException(status_code=404, detail="Case not found")
+
         if request.turn_type != self.current_turn:
             raise HTTPException(status_code=400, detail="Not your turn to speak")
 
@@ -433,8 +438,11 @@ class Judge:
         closing_statement = self.generate_closing_statement(winner, score_difference)
         self.conversations.append(closing_statement)
 
-        case = redis_client.get_case(case_id)
-        case["case_status"] = "Closed"
+        case = postgres_client.get_case(case_id)
+        if not case:
+            raise HTTPException(status_code=404, detail="Case not found")
+
+        case["case_status"] = "closed"
         conversationdict = {
             "conversations": [conversation.dict() for conversation in self.conversations]
         }
@@ -449,7 +457,7 @@ class Judge:
         case.update(conversationdict)
         case.update(case_winner)
         case.update(case_scores)
-        redis_client.update_case(case_id, case)
+        postgres_client.update_case(case_id, case)
 
         return TurnResponse(
             next_turn="none",
