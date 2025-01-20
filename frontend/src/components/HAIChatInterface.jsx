@@ -12,6 +12,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import toast from 'react-hot-toast';
 import { useCredits } from '../context/CreditContext';
+import { translateText } from './TranslationService';
+import LanguageSelector from './LanguageSelector';
 
 const HAIChatInterface = () => {
   const case_id = useParams();
@@ -27,6 +29,8 @@ const HAIChatInterface = () => {
   const { startListening, stopListening, isListening } = useSpeechRecognition();
   const endRef = useRef(null);
   const { deductCredits, CREDIT_COSTS } = useCredits();
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [translatedMessages, setTranslatedMessages] = useState({});
 
   const { sendMessage, lastMessage } = useWebSocket(
     `${import.meta.env.VITE_WS_URL}/ws/hai/${caseId}/${user?.sub}`
@@ -134,7 +138,7 @@ const HAIChatInterface = () => {
   }, [caseId, user, hasStartedCase, deductCredits]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent form refresh
     if (!input.trim()) return;
     
     try {
@@ -163,8 +167,19 @@ const HAIChatInterface = () => {
     if (isListening) {
       stopListening();
     } else {
-      startListening((transcript) => {
-        setInput(transcript);
+      startListening(async (transcript) => {
+        if (selectedLanguage !== 'en') {
+          try {
+            // Translate voice input to English
+            const translatedInput = await translateText(transcript, 'en', selectedLanguage);
+            setInput(translatedInput);
+          } catch (error) {
+            console.error('Translation error:', error);
+            setInput(transcript);
+          }
+        } else {
+          setInput(transcript);
+        }
       });
     }
   };
@@ -213,6 +228,92 @@ const HAIChatInterface = () => {
       setError(null); // Clear the error after showing toast
     }
   }, [error]);
+
+  useEffect(() => {
+    const translateMessages = async () => {
+      if (selectedLanguage === 'en') {
+        setTranslatedMessages({});
+        return;
+      }
+
+      const newTranslations = {};
+      for (const msg of messages) {
+        if (!msg.content) continue;
+        try {
+          const translated = await translateText(msg.content, selectedLanguage);
+          newTranslations[msg.content] = translated;
+        } catch (error) {
+          console.error('Translation error:', error);
+        }
+      }
+      setTranslatedMessages(newTranslations);
+    };
+
+    translateMessages();
+  }, [messages, selectedLanguage]);
+
+  const MessageBubble = ({ msg, idx }) => (
+    <motion.div
+      key={idx}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className={`flex ${msg.speaker === 'human' ? 'justify-end' : 'justify-start'}`}
+    >
+      <div className={`max-w-[85%] ${
+        msg.speaker === 'human' 
+          ? 'bg-black text-white' 
+          : msg.speaker === 'judge' 
+          ? msg.isComment
+            ? 'bg-gray-50 border-l-2 border-gray-900'
+            : 'bg-gray-50'
+          : 'bg-gray-50'
+      } rounded-xl p-4 shadow-sm`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">
+            {msg.speaker === 'ai' ? 'AI Lawyer' : 
+             msg.speaker === 'human' ? 'You' : 
+             msg.isComment ? 'Judge\'s Comment' : 'Judge'}
+          </span>
+          {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
+            <VoiceButton 
+              text={selectedLanguage === 'en' ? msg.content : translatedMessages[msg.content]}
+              language={selectedLanguage}
+            />
+          )}
+        </div>
+        <div className={`prose prose-sm max-w-none ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {msg.content}
+          </ReactMarkdown>
+          {selectedLanguage !== 'en' && translatedMessages[msg.content] && (
+            <div className="mt-2 pt-2 border-t border-gray-200/20">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {translatedMessages[msg.content]}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+        {msg.context && (
+          <motion.div 
+            initial={{ height: 0 }}
+            animate={{ height: "auto" }}
+            className="mt-3 pt-3 border-t border-gray-200/20"
+          >
+            <p className="font-medium mb-1 text-sm">Supporting Context</p>
+            <div className={`text-sm ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-600'}`}>
+              {formatMarkdown(msg.context)}
+            </div>
+          </motion.div>
+        )}
+        {msg.score !== undefined && (
+          <div className={`mt-2 text-xs ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-500'}`}>
+            Score Impact: {msg.score > 0 ? '+' : ''}{msg.score.toFixed(2)}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
 
   return (
     <motion.div 
@@ -280,6 +381,10 @@ const HAIChatInterface = () => {
                 {gameState?.case_status || 'Loading...'}
               </div>
             </div>
+            <LanguageSelector
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
+            />
           </div>
         </div>
       </div>
@@ -290,54 +395,7 @@ const HAIChatInterface = () => {
           <div className="space-y-6 py-4">
             <AnimatePresence>
               {messages.map((msg, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={`flex ${msg.speaker === 'human' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[85%] ${
-                    msg.speaker === 'human' 
-                      ? 'bg-black text-white' 
-                      : msg.speaker === 'judge' 
-                      ? msg.isComment
-                        ? 'bg-gray-50 border-l-2 border-gray-900'
-                        : 'bg-gray-50'
-                      : 'bg-gray-50'
-                  } rounded-xl p-4 shadow-sm`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">
-                        {msg.speaker === 'ai' ? 'AI Lawyer' : 
-                         msg.speaker === 'human' ? 'You' : 
-                         msg.isComment ? 'Judge\'s Comment' : 'Judge'}
-                      </span>
-                      {(msg.speaker === 'judge' || msg.speaker === 'ai') && (
-                        <VoiceButton text={msg.content} />
-                      )}
-                    </div>
-                    <div className={`text-base ${msg.speaker === 'human' ? 'text-white' : 'text-gray-800'}`}>
-                      {formatMarkdown(msg.content)}
-                    </div>
-                    {msg.context && (
-                      <motion.div 
-                        initial={{ height: 0 }}
-                        animate={{ height: "auto" }}
-                        className="mt-3 pt-3 border-t border-gray-200/20"
-                      >
-                        <p className="font-medium mb-1 text-sm">Supporting Context</p>
-                        <div className={`text-sm ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {formatMarkdown(msg.context)}
-                        </div>
-                      </motion.div>
-                    )}
-                    {msg.score !== undefined && (
-                      <div className={`mt-2 text-xs ${msg.speaker === 'human' ? 'text-gray-300' : 'text-gray-500'}`}>
-                        Score Impact: {msg.score > 0 ? '+' : ''}{msg.score.toFixed(2)}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+                <MessageBubble msg={msg} idx={idx} />
               ))}
             </AnimatePresence>
 

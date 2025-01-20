@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Loader2, MessageSquare, Mic, X, Maximize2, Minimize2, Coins } from 'lucide-react';
@@ -6,6 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSpeechRecognition } from '../utils/useVoice';
 import VoiceButton from './VoiceButton';
+import LanguageSelector from './LanguageSelector';
+import { translateText } from './TranslationService';
 import { useAuth0 } from '@auth0/auth0-react';
 import PropTypes from 'prop-types';
 import { useCredits } from '../context/CreditContext';
@@ -16,10 +18,30 @@ const ChatInterface = ({ isWidget = false }) => {
   const [input, setInput] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [translatedResponse, setTranslatedResponse] = useState('');
   const { user, isAuthenticated } = useAuth0();
   const { deductCredits, CREDIT_COSTS } = useCredits();
-  const { startListening, stopListening, isListening } = useSpeechRecognition();
+  const { startListening, stopListening, isListening } = useSpeechRecognition(selectedLanguage);
+
+  // Effect to translate response when language changes
+  useEffect(() => {
+    const translateResponse = async () => {
+      if (selectedLanguage === 'en' || !response) {
+        setTranslatedResponse('');
+        return;
+      }
+
+      try {
+        const translated = await translateText(response, selectedLanguage);
+        setTranslatedResponse(translated);
+      } catch (error) {
+        console.error('Translation error:', error);
+      }
+    };
+
+    translateResponse();
+  }, [selectedLanguage, response]);
 
   const handleSubmit = async (e) => {
     setLoading(true);
@@ -27,25 +49,32 @@ const ChatInterface = ({ isWidget = false }) => {
     if (!input.trim()) return;
     
     try {
-      // Use credits for chat consulting
+      // If input is not in English, translate it first
+      let processedInput = input;
+      if (selectedLanguage !== 'en') {
+        try {
+          processedInput = await translateText(input, 'en', selectedLanguage);
+        } catch (error) {
+          console.error('Translation error:', error);
+        }
+      }
+
       const result = await deductCredits('chat_consulting');
       if (!result.success) {
-        toast.error(result.message || "Not enough credits. Please purchase more credits to continue.");
+        toast.error(result.message || "Not enough credits");
         return;
       }
 
-      // If credit deduction successful, proceed with sending message
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
-        prompt: input
+        prompt: processedInput
       });
-      console.log(response);
 
       setResponse(response.data);
       setInput('');
-      setLoading(false);
     } catch (error) {
-      console.error('Error processing chat:', error);
-      toast.error(error.response?.data?.detail || 'Failed to process your message. Please try again.');
+      console.error('Error:', error);
+      toast.error('Failed to process your message');
+    } finally {
       setLoading(false);
     }
   };
@@ -60,8 +89,46 @@ const ChatInterface = ({ isWidget = false }) => {
     }
   };
 
+  const ResponseSection = ({ response, translatedResponse, selectedLanguage }) => {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium text-gray-900">Response</h3>
+          <VoiceButton 
+            text={selectedLanguage === 'en' ? response : translatedResponse}
+            language={selectedLanguage}
+          />
+        </div>
+        <div className="prose prose-sm max-w-none text-gray-800">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {response}
+          </ReactMarkdown>
+          {selectedLanguage !== 'en' && translatedResponse && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {translatedResponse}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className={`space-y-6 ${isWidget ? 'h-full flex flex-col' : ''}`}>
+      {/* Language Selector */}
+      <div className="flex justify-end mb-4">
+        <LanguageSelector
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
+        />
+      </div>
+
       {/* Question Input Section */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
@@ -144,70 +211,13 @@ const ChatInterface = ({ isWidget = false }) => {
         </motion.button>
       </form>
 
-      {/* Error Message */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm"
-        >
-          {error}
-        </motion.div>
-      )}
-
       {/* Response Section */}
       {response && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`${isWidget ? 'flex-1 overflow-auto' : 'border-t border-black/5 pt-6'}`}
-        >
-          {/* Response Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-black/5 rounded-lg">
-                <MessageSquare className="w-5 h-5 text-black" />
-              </div>
-              <h2 className="text-lg font-semibold text-black">Legal Opinion</h2>
-            </div>
-            {response && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Listen to Response</span>
-                <VoiceButton text={typeof response === 'string' ? response : ''} />
-              </div>
-            )}
-          </div>
-
-          {/* Response Content */}
-          <div className="bg-black/[0.02] rounded-xl p-6">
-            <article className={`prose max-w-none ${
-              isWidget ? 'prose-sm' : 'prose-lg'
-            } prose-headings:font-display prose-headings:font-semibold
-              prose-h1:text-2xl prose-h1:mb-4
-              prose-h2:text-xl prose-h2:mb-3
-              prose-h3:text-lg prose-h3:mb-2
-              prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-4
-              prose-ul:mb-4 prose-ul:list-disc prose-ul:pl-4
-              prose-ol:mb-4 prose-ol:pl-4
-              prose-li:mb-1 prose-li:text-gray-600
-              prose-strong:font-semibold prose-strong:text-black
-              prose-blockquote:border-l-4 prose-blockquote:border-black/10 
-              prose-blockquote:pl-4 prose-blockquote:italic
-              prose-code:bg-black/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-              prose-pre:bg-black/[0.03] prose-pre:p-4 prose-pre:rounded-lg
-              prose-img:rounded-lg
-              prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline`}
-            >
-              {typeof response === 'string' ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {response}
-                </ReactMarkdown>
-              ) : (
-                JSON.stringify(response)
-              )}
-            </article>
-          </div>
-        </motion.div>
+        <ResponseSection 
+          response={response}
+          translatedResponse={translatedResponse}
+          selectedLanguage={selectedLanguage}
+        />
       )}
     </div>
   );
