@@ -1,9 +1,17 @@
 import React from 'react';
 import { Globe } from 'lucide-react';
 
-const SUPPORTED_LANGUAGES = [
+const LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'hi', name: 'Hindi' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'kn', name: 'Kannada' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'pa', name: 'Punjabi' },
   { code: 'es', name: 'Spanish' },
   { code: 'fr', name: 'French' },
   { code: 'de', name: 'German' },
@@ -22,7 +30,7 @@ export default function LanguageSelector({ selectedLanguage, onLanguageChange })
         onChange={(e) => onLanguageChange(e.target.value)}
         className="form-select rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
       >
-        {SUPPORTED_LANGUAGES.map((lang) => (
+        {LANGUAGES.map((lang) => (
           <option key={lang.code} value={lang.code}>
             {lang.name}
           </option>

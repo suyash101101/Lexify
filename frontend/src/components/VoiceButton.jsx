@@ -13,15 +13,67 @@ const VoiceButton = ({ text, language = 'en' }) => {
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
+    } else {
+      window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
   }, [audio]);
+
+  const useBrowserSpeech = useCallback(() => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language;
+    
+    // Adjust speech parameters based on language
+    if (language.startsWith('hi') || 
+        language.startsWith('bn') || 
+        language.startsWith('te') || 
+        language.startsWith('ta') || 
+        language.startsWith('mr') || 
+        language.startsWith('gu') || 
+        language.startsWith('kn') || 
+        language.startsWith('ml') || 
+        language.startsWith('pa')) {
+      // Use slower rate for Indian languages
+      utterance.rate = 0.8;
+      utterance.pitch = 1.1;
+    } else {
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+    }
+    
+    utterance.volume = 1.0;
+
+    // Try to find a voice that matches the language
+    const voices = window.speechSynthesis.getVoices();
+    const matchingVoice = voices.find(voice => 
+      voice.lang.startsWith(language) || 
+      voice.lang.startsWith(language.split('-')[0])
+    );
+    
+    if (matchingVoice) {
+      utterance.voice = matchingVoice;
+    }
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = (event) => {
+      console.error('Browser speech synthesis error:', event);
+      setIsSpeaking(false);
+    };
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  }, [text, language]);
 
   const speak = useCallback(async () => {
     if (!text) return;
     setIsLoading(true);
 
     try {
+      // Check if ElevenLabs API key exists
+      if (!import.meta.env.VITE_ELEVEN_LABS_API_KEY) {
+        throw new Error('No API key');
+      }
+
       const response = await axios.post(
         'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
         {
@@ -37,27 +89,36 @@ const VoiceButton = ({ text, language = 'en' }) => {
             'xi-api-key': import.meta.env.VITE_ELEVEN_LABS_API_KEY,
             'Content-Type': 'application/json',
           },
-          responseType: 'blob'
+          responseType: 'blob',
+          timeout: 10000 // 10 second timeout
         }
       );
+
+      if (!response.data || response.data.size === 0) {
+        throw new Error('Invalid response from ElevenLabs');
+      }
 
       const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
       const audioUrl = URL.createObjectURL(audioBlob);
       const newAudio = new Audio(audioUrl);
       
-      newAudio.onended = () => setIsSpeaking(false);
+      newAudio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(audioUrl); // Clean up the URL
+      };
       newAudio.onpause = () => setIsSpeaking(false);
+      newAudio.playbackRate = 1.0; // Normal playback speed
 
       setAudio(newAudio);
       await newAudio.play();
       setIsSpeaking(true);
     } catch (error) {
-      console.error('Speech synthesis error:', error);
-      toast.error('Failed to generate speech');
+      console.error('ElevenLabs error:', error);
+      useBrowserSpeech(); // Fallback to browser speech
     } finally {
       setIsLoading(false);
     }
-  }, [text]);
+  }, [text, useBrowserSpeech]);
 
   const handleClick = (e) => {
     e.stopPropagation();
@@ -67,6 +128,17 @@ const VoiceButton = ({ text, language = 'en' }) => {
       speak();
     }
   };
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (audio) {
+        audio.pause();
+        setAudio(null);
+      }
+      window.speechSynthesis.cancel();
+    };
+  }, [audio]);
 
   return (
     <motion.button
