@@ -64,12 +64,12 @@ const ChatInterface = ({ isWidget = false }) => {
         toast.error(result.message || "Not enough credits");
         return;
       }
-
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
+        auth_id: user?.sub,
         prompt: processedInput
       });
 
-      setResponse(response.data);
+      setResponse(response.data.response);
       setInput('');
     } catch (error) {
       console.error('Error:', error);
@@ -296,6 +296,103 @@ export const GlobalConsultingWidget = () => {
   );
 };
 
+// Add ConsultingHistory component
+const ConsultingHistory = () => {
+  const { user } = useAuth0();
+  const [consultings, setConsultings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null); // Track which consulting is expanded
+
+  useEffect(() => {
+    const fetchConsultings = async () => {
+      if (!user?.sub) return;
+      
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/consultancy/user_consultings/${user.sub}`);
+        const sortedConsultings = response.data.sort((a, b) => 
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+        setConsultings(sortedConsultings);
+      } catch (error) {
+        console.error('Error fetching consultings:', error);
+        toast.error('Failed to fetch consultation history');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchConsultings();
+  }, [user?.sub]);
+
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-xl font-display font-semibold text-black mb-4">Consultation History</h2>
+      <div className="grid gap-4">
+        {consultings.map((consulting) => (
+          <div
+            key={consulting.consulting_id}
+            className="bg-white border border-black/5 rounded-xl p-4 hover:border-black/10 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="font-medium text-black line-clamp-1">{consulting.prompt}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-gray-500">ID: {consulting.consulting_id}</p>
+                  <span className="text-gray-300">•</span>
+                  <p className="text-sm text-gray-500">User: {consulting.lawyer1_address}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleExpand(consulting.consulting_id)}
+                className="shrink-0 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="View Chat"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Expandable Response Section */}
+            {expandedId === consulting.consulting_id && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-4 border-t border-gray-100 pt-4"
+              >
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {consulting.response}
+                  </ReactMarkdown>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        ))}
+        
+        {consultings.length === 0 && (
+          <div className="text-center py-8 bg-white border border-black/5 rounded-xl">
+            <MessageSquare className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-500">No consultation history found</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Main consulting page component
 const Consulting = () => {
   return (
@@ -318,7 +415,12 @@ const Consulting = () => {
         </div>
 
         {/* Main Chat Interface */}
-        <ChatInterface />
+        <div id="chat-interface">
+          <ChatInterface />
+        </div>
+
+        {/* Consultation History */}
+        <ConsultingHistory />
 
         {/* Tips Section */}
         <div className="grid sm:grid-cols-2 gap-4 mt-8">
