@@ -5,6 +5,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from phi.model.google import Gemini
 import os
 from dotenv import load_dotenv
+from phi.storage.agent.sqlite import SqlAgentStorage
 
 load_dotenv()
 
@@ -21,58 +22,56 @@ class RAG:
         self.index = VectorStoreIndex.from_documents(documents)
         self.retriever = self.index.as_retriever(similarity_top_k=5)
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
-        self.query_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")), debug_mode=True)
-        self.consulting_agent = Agent(model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),knowledge_base=self.knowledge_base, debug_mode=True)
+        self.query_agent = Agent(
+            model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv('GEMINI_API_KEY')),
+            storage=SqlAgentStorage(table_name="consultancy_sessions", db_file="tmp/consultancy_storage.db"),
+            add_history_to_messages=True,
+            num_history_responses=3,
+            description=(
+                "You are a consultancy agent that assists lawyers with their queries. "
+                "You provide information about relevant Indian laws and international jurisprudence. "
+            ),
+            instructions=[
+                "You will receive a query regarding a legal case or situation.",
+                "Respond to the query in a structured format, including all necessary materials such as articles, acts, rules, regulations, and judgments.",
+                "Input format: The following is the query: [query]\nThe following is the context: [context].",
+                "Address only the query while utilizing the context to formulate your response.",
+                "Ensure that your answer is clear, concise, and well-organized."
+            ],
+            debug_mode=True
+        )
+        self.consulting_agent = Agent(
+            model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GOOGLE_API_KEY")),
+            knowledge_base=self.knowledge_base, 
+            description="You are a legal analysis system with extensive knowledge of Indian law and international jurisprudence. Your goal is to provide structured and accurate legal insights.",
+            instructions=[
+                "You will receive a query about a legal case or situation.",
+                "Your task is to gather all relevant context needed to provide a comprehensive answer.",
+                "Respond to the query in a structured format, including all necessary materials such as articles, acts, rules, regulations, and judgments.",
+                "Ensure that your answer is clear, concise, and well-organized."
+                "Be precise and concise in your response."
+                "Dont start with 'The following is the answer to your query:' or anything similar."
+                "Directly give the answer to the query."
+            ],
+            debug_mode=True
+        )
     
     def ask(self, prompt):
-        query = f"For the given prompt {prompt} get all relevant context needed to give the answer."
-        run: RunResponse = self.consulting_agent.run(query)
+        run: RunResponse = self.consulting_agent.run(prompt)
         print(run.content)
         query = (
-            "You are a legal analysis system with comprehensive knowledge of Indian law and international jurisprudence. "
-            "\nTask Configuration:"
-            f"Analyze the following query: {prompt}"
-            f"Reference content provided: {run.content}"
-            "\nAnalysis Framework:"
-            "1. Query Classification:"
-            "   - Determine if query requires provided context or can be answered from legal knowledge base"
-            "   - Identify primary legal domains involved"
-            "   - Assess jurisdictional scope"
-            "\n2. Legal Foundation Analysis:"
-            "   - Relevant Articles of the Indian Constitution"
-            "   - Applicable Central and State Acts"
-            "   - Pertinent Rules and Regulations"
-            "   - Related International Treaties/Conventions (if applicable)"
-            "\n3. Precedent Examination:"
-            "   - Supreme Court judgments"
-            "   - High Court rulings"
-            "   - Landmark international cases (if relevant)"
-            "\n4. Response Structure:"
-            "   - Primary legal principles"
-            "   - Statutory framework"
-            "   - Judicial interpretations"
-            "   - Practical implications"
-            "\n5. Mandatory Citations:"
-            "   - Constitutional provisions with article numbers"
-            "   - Complete Act names with years"
-            "   - Case citations with proper format"
-            "   - Sections and sub-sections of relevant laws"
-            "\nResponse Parameters:"
-            "- Begin with clear identification of applicable laws"
-            "- Provide hierarchical legal framework starting with Constitutional provisions"
-            "- Include specific sections and sub-sections of relevant acts"
-            "- Reference landmark judgments with complete citations"
-            "- Add explanatory notes for complex legal concepts"
-            "\nContext Integration Rules:"
-            "- Use provided context only if essential for query resolution"
-            "- Clearly distinguish between context-based and general legal knowledge"
+            f"The following is the query: {prompt}\n"
+            f"The following is the context: {run.content}"
         )
         run: RunResponse = self.query_agent.run(query)
         return run.content
     
-# def main():
-#     agent = RAG()
-#     ans = agent.ask("If there is a case where a wife kills the husband in self defense what all charges should she be charged with. Give relevant articles and acts for the charges.")
-#     print(ans)
+def main():
+    agent = RAG()
+    prompt = input("Enter your query: ")
+    while prompt != "exit":
+        ans = agent.ask(prompt)
+        print(ans)
+        prompt = input("Enter your query: ")
 
-# main()
+main()
