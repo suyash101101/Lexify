@@ -66,12 +66,12 @@ class RAG:
         run: RunResponse = self.query_agent.run(query)
         return run.content
     
-def main():
-    agent = RAG()
-    prompt = input("Enter your query: ")
-    while prompt != "exit":
-        ans = agent.ask(prompt)
-        print(ans)
-        prompt = input("Enter your query: ")
+# def main():
+#     agent = RAG()
+#     prompt = input("Enter your query: ")
+#     while prompt != "exit":
+#         ans = agent.ask(prompt)
+#         print(ans)
+#         prompt = input("Enter your query: ")
 
-main()
+# main()
