@@ -17,7 +17,7 @@ Settings.embed_model = HuggingFaceEmbedding(
 
 class RAG:
     def __init__(self):
-        data_dir = os.getenv("DATA_DIR")
+        data_dir = 'app/consultancy/data'
         documents = SimpleDirectoryReader(input_dir=data_dir).load_data()
         self.index = VectorStoreIndex.from_documents(documents)
         self.retriever = self.index.as_retriever(similarity_top_k=5)
@@ -75,3 +75,27 @@ class RAG:
 #         prompt = input("Enter your query: ")
 
 # main()
+
+class ConsultancySession:
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.rag_agent = RAG()
+        
+    def ask(self, prompt: str) -> str:
+        return self.rag_agent.ask(prompt)
+
+class ConsultancyManager:
+    def __init__(self):
+        self.active_sessions = {}
+        
+    def create_session(self, session_id: str) -> ConsultancySession:
+        session = ConsultancySession(session_id)
+        self.active_sessions[session_id] = session
+        return session
+    
+    def get_session(self, session_id: str) -> ConsultancySession:
+        return self.active_sessions.get(session_id)
+    
+    def remove_session(self, session_id: str):
+        if session_id in self.active_sessions:
+            del self.active_sessions[session_id]

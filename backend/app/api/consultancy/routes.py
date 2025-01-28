@@ -1,15 +1,20 @@
-from ...consultancy.consultancy import RAG
-from fastapi import APIRouter, Body, HTTPException
+from ...consultancy.consultancy import ConsultancyManager
+from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel
 from ...db.redis_db import redis_client
 import uuid
 from typing import List
 
 router = APIRouter()
+consultancy_manager = ConsultancyManager()
 
-# Request model
+# Request models
+class StartConsultingRequest(BaseModel):
+    auth_id: str
+
 class PromptRequest(BaseModel):
     auth_id: str
+    consulting_id: str  # Added to identify the session
     prompt: str
 
 class OldPromptsRequest(BaseModel):
@@ -18,33 +23,67 @@ class OldPromptsRequest(BaseModel):
 class OldPromptsResponse(BaseModel):
     prompts: list[str]
 
-consultancyAgent = RAG()
 
-@router.post("/ask", response_model=dict)
-async def ask(request: PromptRequest):
-    """Ask a question to the consultancy agent"""
+@router.post("/start/consulting")
+async def start_consulting(request: StartConsultingRequest):
+    """Initialize a new consulting session"""
     try:
-        # Generate UUID for new consulting
         consulting_id = str(uuid.uuid4())
         
-        # Get response from consultancy agent
-        response = consultancyAgent.ask(request.prompt)
+        # Create new session
+        consultancy_manager.create_session(consulting_id)
         
-        # Create consulting object
+        # Store initial session data in Redis
         consulting_obj = {
             "consulting_id": consulting_id,
             "lawyer1_address": request.auth_id,
-            "prompt": request.prompt,
-            "response": response
+            "messages": []  # To store conversation history
         }
         
-        # Store in Redis
-        consulting_data = redis_client.create_consulting(
+        redis_client.create_consulting(
             consulting_id=consulting_id,
             consulting_data=consulting_obj
         )
         
-        return consulting_data
+        return {"consulting_id": consulting_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/ask", response_model=dict)
+async def ask(request: PromptRequest):
+    """Ask a question within an existing consulting session"""
+    try:
+        # Get the session
+        session = consultancy_manager.get_session(request.consulting_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Consulting session not found")
+        
+        # Get response from the session's RAG agent
+        response = session.ask(request.prompt)
+        
+        # Get existing consulting data
+        consulting_data = redis_client.get_consulting(request.consulting_id)
+        if not consulting_data:
+            raise HTTPException(status_code=404, detail="Consulting data not found")
+        
+        # Update messages history
+        message = {
+            "prompt": request.prompt,
+            "response": response
+        }
+        consulting_data["messages"].append(message)
+        
+        # Update in Redis
+        updated_data = redis_client.create_consulting(
+            consulting_id=request.consulting_id,
+            consulting_data=consulting_data
+        )
+        
+        return {
+            "consulting_id": request.consulting_id,
+            "response": response,
+            "consulting_data": updated_data
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
