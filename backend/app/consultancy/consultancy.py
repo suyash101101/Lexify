@@ -36,7 +36,10 @@ class RAG:
                 "Respond to the query in a structured format, including all necessary materials such as articles, acts, rules, regulations, and judgments.",
                 "Input format: The following is the query: [query]\nThe following is the context: [context].",
                 "Address only the query while utilizing the context to formulate your response.",
-                "Ensure that your answer is clear, concise, and well-organized."
+                "Ensure that your answer is clear, concise, and well-organized.",
+                "Ensure any legal references mentions the particular book, section, and page number used from the knowledge base.",
+                "Dont start with 'The following is the answer to your query:' or anything similar."
+                "Directly give the answer to the query."
             ],
             debug_mode=True
         )

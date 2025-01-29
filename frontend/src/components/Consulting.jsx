@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, MessageSquare, Mic, X, Maximize2, Minimize2, Coins } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Mic, X, Maximize2, Minimize2, Coins, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useSpeechRecognition } from '../utils/useVoice';
@@ -12,44 +12,127 @@ import { useAuth0 } from '@auth0/auth0-react';
 import PropTypes from 'prop-types';
 import { useCredits } from '../context/CreditContext';
 import { toast } from 'react-hot-toast';
+import { useNavigate, useBeforeUnload } from 'react-router-dom';
 
 // Separate component for the chat interface to reuse in both places
 const ChatInterface = ({ isWidget = false }) => {
   const [input, setInput] = useState('');
-  const [response, setResponse] = useState('');
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [translatedResponse, setTranslatedResponse] = useState('');
+  const [translatedMessages, setTranslatedMessages] = useState({}); // Store translations for each message
+  const [consultingId, setConsultingId] = useState(null);
+  const [sessionActive, setSessionActive] = useState(false);
+  const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth0();
   const { deductCredits, CREDIT_COSTS } = useCredits();
   const { startListening, stopListening, isListening } = useSpeechRecognition(selectedLanguage);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // Effect to translate response when language changes
+  // Modified translation effect to handle the new message format
   useEffect(() => {
-    const translateResponse = async () => {
-      if (selectedLanguage === 'en' || !response) {
-        setTranslatedResponse('');
+    const translateMessages = async () => {
+      if (selectedLanguage === 'en' || messages.length === 0) {
+        setTranslatedMessages({});
         return;
       }
 
+      const newTranslations = {};
+      for (const message of messages) {
+        try {
+          // Translate prompt
+          const translatedPrompt = await translateText(message.prompt, selectedLanguage);
+          newTranslations[message.prompt] = translatedPrompt;
+
+          // Translate response if it exists
+          if (message.response) {
+            const translatedResponse = await translateText(message.response, selectedLanguage);
+            newTranslations[message.response] = translatedResponse;
+          }
+        } catch (error) {
+          console.error('Translation error:', error);
+        }
+      }
+      setTranslatedMessages(newTranslations);
+    };
+
+    translateMessages();
+  }, [selectedLanguage, messages]);
+
+  // Modified initialization effect
+  useEffect(() => {
+    const initializeConsulting = async () => {
+      if (!user?.sub) return;
+      
+      setIsInitializing(true);
       try {
-        const translated = await translateText(response, selectedLanguage);
-        setTranslatedResponse(translated);
+        console.log("Starting new consulting session...");
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/start/consulting`, {
+          auth_id: user.sub
+        });
+        
+        const newConsultingId = response.data.consulting_id;
+        console.log("Consulting session initialized with ID:", newConsultingId);
+        
+        setConsultingId(newConsultingId);
+        setSessionActive(true);
+        setIsInitializing(false);
       } catch (error) {
-        console.error('Translation error:', error);
+        console.error('Error initializing consulting:', error);
+        toast.error('Failed to start consulting session');
+        setIsInitializing(false);
       }
     };
 
-    translateResponse();
-  }, [selectedLanguage, response]);
+    initializeConsulting();
 
+    return () => {
+      if (sessionActive) {
+        console.log("Ending consulting session:", consultingId);
+        toast.warning('Consulting session ended. You will need to start a new session to continue.');
+        setSessionActive(false);
+      }
+    };
+  }, [user?.sub]);
+
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Warning when leaving page
+  useBeforeUnload(
+    useCallback((event) => {
+      if (sessionActive) {
+        event.preventDefault();
+        return (event.returnValue = 'Are you sure you want to leave? The consulting session will end.');
+      }
+    }, [sessionActive])
+  );
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Modified submit handler to match the message format
   const handleSubmit = async (e) => {
-    setLoading(true);
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || !consultingId || !sessionActive) {
+      console.log("Submit blocked:", {
+        hasInput: !!input.trim(),
+        hasConsultingId: !!consultingId,
+        isSessionActive: sessionActive
+      });
+      return;
+    }
+    
+    const userMessage = input;
+    setInput('');
+    setLoading(true);
     
     try {
-      // If input is not in English, translate it first
+      console.log("Sending message to consulting session:", consultingId);
       let processedInput = input;
       if (selectedLanguage !== 'en') {
         try {
@@ -64,16 +147,36 @@ const ChatInterface = ({ isWidget = false }) => {
         toast.error(result.message || "Not enough credits");
         return;
       }
+
+      // Add user message to UI immediately
+      const newMessage = {
+        prompt: userMessage,
+        response: null
+      };
+      setMessages(prev => [...prev, newMessage]);
+      scrollToBottom();
+
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
         auth_id: user?.sub,
+        consulting_id: consultingId,
         prompt: processedInput
       });
 
-      setResponse(response.data.response);
-      setInput('');
+      console.log("Received response:", response.data);
+      
+      // Update the message with the response
+      setMessages(prev => prev.map(msg => 
+        msg.prompt === userMessage && !msg.response
+          ? { prompt: msg.prompt, response: response.data.response }
+          : msg
+      ));
+      
+      scrollToBottom();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in consulting session:', consultingId, error);
       toast.error('Failed to process your message');
+      // Remove the pending message
+      setMessages(prev => prev.filter(msg => msg.response !== null));
     } finally {
       setLoading(false);
     }
@@ -89,35 +192,77 @@ const ChatInterface = ({ isWidget = false }) => {
     }
   };
 
-  const ResponseSection = ({ response, translatedResponse, selectedLanguage }) => {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-gray-900">Response</h3>
-          <VoiceButton 
-            text={selectedLanguage === 'en' ? response : translatedResponse}
-            language={selectedLanguage}
-          />
-        </div>
-        <div className="prose prose-sm max-w-none text-gray-800">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {response}
-          </ReactMarkdown>
-          {selectedLanguage !== 'en' && translatedResponse && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+  // Modified MessageList component to handle the messages array format
+  const MessageList = () => (
+    <div className="space-y-4 mb-4 overflow-y-auto max-h-[60vh]">
+      {messages.map((message, index) => (
+        <div key={index} className="space-y-4">
+          {/* User Message (Prompt) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-black/5 ml-auto max-w-[80%] p-4 rounded-xl"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-500">You</span>
+            </div>
+            <div className="prose prose-sm max-w-none text-gray-800">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {translatedResponse}
+                {selectedLanguage === 'en' ? message.prompt : translatedMessages[message.prompt] || message.prompt}
               </ReactMarkdown>
             </div>
+          </motion.div>
+
+          {/* AI Response */}
+          {message.response && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white border border-black/5 max-w-[80%] p-4 rounded-xl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">AI Assistant</span>
+                <VoiceButton 
+                  text={selectedLanguage === 'en' ? message.response : translatedMessages[message.response]}
+                  language={selectedLanguage}
+                />
+              </div>
+              <div className="prose prose-sm max-w-none text-gray-800">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {selectedLanguage === 'en' ? message.response : translatedMessages[message.response] || message.response}
+                </ReactMarkdown>
+              </div>
+            </motion.div>
           )}
         </div>
-      </motion.div>
+      ))}
+      <div ref={messagesEndRef} />
+    </div>
+  );
+
+  // Loading state while initializing
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <span className="ml-2 text-gray-600">Initializing consulting session...</span>
+      </div>
     );
-  };
+  }
+
+  // Session warning
+  if (!sessionActive || !consultingId) {
+    return (
+      <div className="text-center py-8 bg-yellow-50 rounded-xl">
+        <AlertTriangle className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+        <p className="text-yellow-700">
+          {!consultingId 
+            ? "Failed to initialize consulting session. Please refresh the page to try again."
+            : "Consulting session has ended. Please refresh the page to start a new session."}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${isWidget ? 'h-full flex flex-col' : ''}`}>
@@ -129,7 +274,12 @@ const ChatInterface = ({ isWidget = false }) => {
         />
       </div>
 
-      {/* Question Input Section */}
+      {/* Messages Section */}
+      <div className="flex-1 overflow-auto">
+        <MessageList />
+      </div>
+
+      {/* Input Section */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           {!isWidget && (
@@ -210,15 +360,6 @@ const ChatInterface = ({ isWidget = false }) => {
           )}
         </motion.button>
       </form>
-
-      {/* Response Section */}
-      {response && (
-        <ResponseSection 
-          response={response}
-          translatedResponse={translatedResponse}
-          selectedLanguage={selectedLanguage}
-        />
-      )}
     </div>
   );
 };
@@ -309,13 +450,11 @@ const ConsultingHistory = () => {
       
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/consultancy/user_consultings/${user.sub}`);
-        const sortedConsultings = response.data.sort((a, b) => 
-          new Date(b.created_at) - new Date(a.created_at)
-        );
-        setConsultings(sortedConsultings);
+        console.log("Fetched consulting history:", response.data);
+        setConsultings(response.data);
       } catch (error) {
-        console.error('Error fetching consultings:', error);
-        toast.error('Failed to fetch consultation history');
+        console.error('Error fetching consulting history:', error);
+        toast.error('Failed to load consulting history');
       } finally {
         setIsLoading(false);
       }
@@ -337,52 +476,79 @@ const ConsultingHistory = () => {
   }
 
   return (
-    <div className="mt-12">
-      <h2 className="text-xl font-display font-semibold text-black mb-4">Consultation History</h2>
-      <div className="grid gap-4">
-        {consultings.map((consulting) => (
-          <div
-            key={consulting.consulting_id}
-            className="bg-white border border-black/5 rounded-xl p-4 hover:border-black/10 transition-colors"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h3 className="font-medium text-black line-clamp-1">{consulting.prompt}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-sm text-gray-500">ID: {consulting.consulting_id}</p>
-                  <span className="text-gray-300">•</span>
-                  <p className="text-sm text-gray-500">User: {consulting.lawyer1_address}</p>
+    <div className="mt-8">
+      <h2 className="text-xl font-semibold text-black mb-4">Consulting History</h2>
+      <div className="space-y-4">
+        {consultings.length > 0 ? (
+          consultings.map((consulting) => (
+            <div
+              key={consulting.consulting_id}
+              className="bg-white border border-black/5 rounded-xl p-4 hover:border-black/10 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  {/* Show the first message's prompt as title if available */}
+                  <h3 className="font-medium text-black line-clamp-1">
+                    {consulting.messages?.[0]?.prompt || "New Consultation"}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-gray-500">ID: {consulting.consulting_id}</p>
+                    <span className="text-gray-300">•</span>
+                    <p className="text-sm text-gray-500">Messages: {consulting.messages?.length || 0}</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => toggleExpand(consulting.consulting_id)}
+                  className="shrink-0 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="View Chat"
+                >
+                  {expandedId === consulting.consulting_id ? (
+                    <Minimize2 className="w-5 h-5" />
+                  ) : (
+                    <Maximize2 className="w-5 h-5" />
+                  )}
+                </button>
               </div>
-              <button
-                onClick={() => toggleExpand(consulting.consulting_id)}
-                className="shrink-0 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                title="View Chat"
-              >
-                <MessageSquare className="w-4 h-4" />
-              </button>
-            </div>
-            
-            {/* Expandable Response Section */}
-            {expandedId === consulting.consulting_id && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mt-4 border-t border-gray-100 pt-4"
-              >
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {consulting.response}
-                  </ReactMarkdown>
+
+              {/* Expanded chat history */}
+              {expandedId === consulting.consulting_id && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="space-y-4">
+                    {consulting.messages?.map((message, index) => (
+                      <div key={index} className="space-y-4">
+                        {/* User Message */}
+                        <div className="bg-black/5 ml-auto max-w-[80%] p-4 rounded-xl">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-gray-500">You</span>
+                          </div>
+                          <div className="prose prose-sm max-w-none text-gray-800">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {message.prompt}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+
+                        {/* AI Response */}
+                        {message.response && (
+                          <div className="bg-white border border-black/5 max-w-[80%] p-4 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm text-gray-500">AI Assistant</span>
+                            </div>
+                            <div className="prose prose-sm max-w-none text-gray-800">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {message.response}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </motion.div>
-            )}
-          </div>
-        ))}
-        
-        {consultings.length === 0 && (
+              )}
+            </div>
+          ))
+        ) : (
           <div className="text-center py-8 bg-white border border-black/5 rounded-xl">
             <MessageSquare className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-gray-500">No consultation history found</p>
