@@ -15,12 +15,16 @@ Settings.embed_model = HuggingFaceEmbedding(
     model_name="all-MiniLM-L6-v2"
 )
 
-class RAG:
+class VectorDatabase:
     def __init__(self):
         data_dir = os.getenv("DATA_DIR")
         documents = SimpleDirectoryReader(input_dir=data_dir).load_data()
         self.index = VectorStoreIndex.from_documents(documents)
-        self.retriever = self.index.as_retriever(similarity_top_k=5)
+        self.retriever = self.index.as_retriever(similarity_top_k=10)
+    
+class RAG:
+    def __init__(self, retriever):
+        self.retriever = retriever
         self.knowledge_base = LlamaIndexKnowledgeBase(retriever=self.retriever)
         self.query_agent = Agent(
             model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv('GEMINI_API_KEY')),
@@ -67,7 +71,8 @@ class RAG:
         return run.content
     
 # def main():
-#     agent = RAG()
+#     vector_database = VectorDatabase()
+#     agent = RAG(vector_database.retriever)
 #     prompt = input("Enter your query: ")
 #     while prompt != "exit":
 #         ans = agent.ask(prompt)

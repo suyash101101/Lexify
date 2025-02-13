@@ -1,4 +1,4 @@
-from ...consultancy.consultancy import RAG
+from ...consultancy.consultancy import RAG, VectorDatabase
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
@@ -8,7 +8,8 @@ router = APIRouter()
 class PromptRequest(BaseModel):
     prompt: str
 
-consultancyAgent = RAG()
+vector_database = VectorDatabase()
+consultancyAgent = RAG(vector_database.retriever)
 
 @router.post("/ask", response_model=str)
 async def ask(request: PromptRequest):
