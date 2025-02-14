@@ -1,4 +1,4 @@
-from ...consultancy.consultancy import ConsultancyManager
+from ...consultancy.consultancy import ConsultancyManager, VectorDatabase
 from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel
 from ...db.redis_db import redis_client
@@ -17,37 +17,8 @@ class PromptRequest(BaseModel):
     consulting_id: str  # Added to identify the session
     prompt: str
 
-class OldPromptsRequest(BaseModel):
-    auth_id: str
-
-class OldPromptsResponse(BaseModel):
-    prompts: list[str]
-
-
-@router.post("/start/consulting")
-async def start_consulting(request: StartConsultingRequest):
-    """Initialize a new consulting session"""
-    try:
-        consulting_id = str(uuid.uuid4())
-        
-        # Create new session
-        consultancy_manager.create_session(consulting_id)
-        
-        # Store initial session data in Redis
-        consulting_obj = {
-            "consulting_id": consulting_id,
-            "lawyer1_address": request.auth_id,
-            "messages": []  # To store conversation history
-        }
-        
-        redis_client.create_consulting(
-            consulting_id=consulting_id,
-            consulting_data=consulting_obj
-        )
-        
-        return {"consulting_id": consulting_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+vector_database = VectorDatabase()
+consultancyAgent = RAG(vector_database.retriever)
 
 @router.post("/ask", response_model=dict)
 async def ask(request: PromptRequest):
