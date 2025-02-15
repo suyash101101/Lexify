@@ -7,7 +7,7 @@ import os
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
-from vector_db import VectorDatabase
+from .vector_db import VectorDatabase
 
 load_dotenv()
 
@@ -353,5 +353,5 @@ def interactive_session():
         logger.error("Fatal session error", exc_info=True)
         print(f"A fatal error occurred: {str(e)}")
 
-if __name__ == "__main__":
-    interactive_session()
+# if __name__ == "__main__":
+#     interactive_session()

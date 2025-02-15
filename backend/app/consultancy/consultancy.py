@@ -8,7 +8,7 @@ import os
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from dotenv import load_dotenv
-from vector_db import VectorDatabase
+from .vector_db import VectorDatabase
 from phi.model.google import Gemini
 
 load_dotenv()
@@ -42,9 +42,9 @@ class Consultant:
         try:
             # Initialize query agent with knowledge base
             logger.info("Setting up research agent...")
-            self.query_agent = Agent(
+            self.query_agent = Agent(   
                 model=Gemini(id="gemini-2.0-flash-exp", api_key=os.getenv("GEMINI_API_KEY")),
-                knowledge_base=None,
+                knowledge_base=LlamaIndexKnowledgeBase(retriever=retriever),
                 description="""You are a legal research assistant that provides factual information
                              from the knowledge base about legal concepts and precedents.""",
                 instructions=[
@@ -211,5 +211,5 @@ def interactive_session():
         print(f"A system error occurred: {str(e)}")
         print("Please try starting a new session.")
 
-if __name__ == "__main__":
-    interactive_session()
+# if __name__ == "__main__":
+#     interactive_session()
