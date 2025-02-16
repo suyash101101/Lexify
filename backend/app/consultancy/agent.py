@@ -278,8 +278,8 @@ class LegalAgent:
                    
                    Please synthesize these findings into a comprehensive analysis."""
             ).content
-
-            return final_response.response
+            logger.info(f"Final response: {final_response}")
+            return final_response.response  
 
         except Exception as e:
             logger.error(f"Error processing research query: {str(e)}", exc_info=True)

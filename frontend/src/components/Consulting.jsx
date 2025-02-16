@@ -15,6 +15,7 @@ import { toast } from 'react-hot-toast';
 import { useNavigate, useBeforeUnload } from 'react-router-dom';
 import { CREDIT_COSTS } from '../constants/credits';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/Dialog';
+import { initializeConsultation, sendConsultQuery, getConsultStatus, getUserConsultings, getConsulting } from '../services/consulting';
 
 // Add this new component for the copy button
 const CopyButton = ({ text }) => {
@@ -105,6 +106,12 @@ const ChatInterface = ({ isWidget = false, isModal = false, onClose }) => {
   const [showInitialModal, setShowInitialModal] = useState(true);
   const chatContainerRef = useRef(null);
   const isFirstRender = useRef(true);
+  const [sessionId, setSessionId] = useState(null);
+  const [needsContext, setNeedsContext] = useState(false);
+  const [contextRequirements, setContextRequirements] = useState([]);
+  const [contextAnswers, setContextAnswers] = useState([]);
+  const [currentContextIndex, setCurrentContextIndex] = useState(0);
+  const [currentQuery, setCurrentQuery] = useState('');
 
   // Modified translation effect to handle the new message format
   useEffect(() => {
@@ -755,7 +762,7 @@ const ConsultingHistory = () => {
       <div className="space-y-4">
         {consultings.map(consulting => (
           <ConsultingItem 
-            key={consulting.id} 
+            key={consulting.session_id} 
             consulting={consulting} 
           />
         ))}
@@ -797,302 +804,219 @@ const useConsultingInitialization = () => {
 
 // Update the ChatModal component to be a full chat interface
 const ChatModal = ({ isOpen, onClose }) => {
+  const [sessionId, setSessionId] = useState(null);
+  const [needsContext, setNeedsContext] = useState(false);
+  const [contextRequirements, setContextRequirements] = useState([]);
+  const [contextAnswers, setContextAnswers] = useState([]);
+  const [currentContextIndex, setCurrentContextIndex] = useState(0);
+  const [currentQuery, setCurrentQuery] = useState('');
   const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [translatedMessages, setTranslatedMessages] = useState({});
+  const messagesEndRef = useRef(null);
   const { user } = useAuth0();
-  const { deductCredits } = useCredits();
-  const chatContainerRef = useRef(null);
-  const [isReady, setIsReady] = useState(false);
-  const [localConsultingId, setLocalConsultingId] = useState(null);
-  const { startListening, stopListening, isListening } = useSpeechRecognition(selectedLanguage);
+  const [userConsultings, setUserConsultings] = useState([]);
 
-  // Add translation effect
+  // Reset state when modal opens
   useEffect(() => {
-    const translateMessages = async () => {
-      if (selectedLanguage === 'en' || messages.length === 0) {
-        setTranslatedMessages({});
-        return;
-      }
-
-      const newTranslations = {};
-      for (const message of messages) {
-        try {
-          const translatedPrompt = await translateText(message.prompt, selectedLanguage);
-          newTranslations[message.prompt] = translatedPrompt;
-
-          if (message.response) {
-            const translatedResponse = await translateText(message.response, selectedLanguage);
-            newTranslations[message.response] = translatedResponse;
-          }
-        } catch (error) {
-          console.error('Translation error:', error);
-        }
-      }
-      setTranslatedMessages(newTranslations);
-    };
-
-    translateMessages();
-  }, [selectedLanguage, messages]);
-
-  // Update handleSubmit with better error handling and translation
-  const handleSubmit = async (e) => {
-    e?.preventDefault();
-    if (!input.trim() || loading || !localConsultingId) return;
-
-    const userMessage = input;
-    setInput('');
-    setLoading(true);
-
-    try {
-      // Check credits first
-      const result = await deductCredits('chat_consulting');
-      if (!result.success) {
-        toast.error(result.message || "Not enough credits");
-        return;
-      }
-
-      // Translate input if needed
-      let processedInput = userMessage;
-      if (selectedLanguage !== 'en') {
-        try {
-          processedInput = await translateText(userMessage, 'en', selectedLanguage);
-        } catch (error) {
-          console.error('Translation error:', error);
-          toast.error('Translation failed, using original text');
-        }
-      }
-
-      // Add user message immediately
-      setMessages(prev => [...prev, { prompt: userMessage, response: null }]);
-
-      // Make API call
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/ask`, {
-        auth_id: user?.sub,
-        consulting_id: localConsultingId,
-        prompt: processedInput
-      });
-
-      if (response.data && response.data.response) {
-        setMessages(prev => prev.map(msg => 
-          msg.prompt === userMessage && !msg.response
-            ? { prompt: msg.prompt, response: response.data.response }
-            : msg
-        ));
-      } else {
-        throw new Error('Invalid response format');
-      }
-
-    } catch (error) {
-      console.error('Error in consulting:', error);
-      toast.error(error.response?.data?.message || 'Failed to process your message');
-      // Remove the pending message
-      setMessages(prev => prev.filter(msg => msg.prompt !== userMessage));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Add scroll effect
-  useEffect(() => {
-    if (chatContainerRef.current && messages.length > 0) {
-      const container = chatContainerRef.current;
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, [messages]);
-
-  // Close handler
-  const handleClose = useCallback(() => {
-    if (messages.length > 0) {
-      window.dispatchEvent(new CustomEvent('refreshConsultingHistory'));
-    }
-    stopListening();
-    onClose();
-  }, [messages.length, onClose, stopListening]);
-
-  // Initialize consulting session
-  useEffect(() => {
-    const initializeSession = async () => {
-      if (!user?.sub) return;
-      
-      try {
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/consultancy/start/consulting`, {
-          auth_id: user.sub
-        });
-        
-        setLocalConsultingId(response.data.consulting_id);
-        setIsReady(true);
-      } catch (error) {
-        console.error('Error initializing consulting:', error);
-        toast.error('Failed to start consulting session');
-        handleClose();
-      }
-    };
-
     if (isOpen) {
-      initializeSession();
+      setMessages([]);
+      setNeedsContext(false);
+      setContextRequirements([]);
+      setContextAnswers([]);
+      setCurrentContextIndex(0);
+      setCurrentQuery('');
+      setInput('');
+      
+      const initialize = async () => {
+        try {
+          console.log("Initializing consultation");
+          console.log("User ID:", user?.sub);
+          const sid = await initializeConsultation(user?.sub);  // Pass auth_id
+          console.log("Session ID:", sid);
+          setSessionId(sid);
+        } catch (error) {
+          console.error('Failed to initialize consultation:', error);
+          toast.error('Failed to initialize consultation');
+        }
+      };
+      initialize();
     }
   }, [isOpen, user?.sub]);
 
-  // Add voice input handler
-  const handleVoiceInput = useCallback(() => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening((transcript) => {
-        setInput(prev => {
-          const prefix = prev.trim() ? prev.trim() + ' ' : '';
-          return prefix + transcript.trim();
-        });
-      });
-    }
-  }, [isListening, startListening, stopListening]);
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // Add keyboard handler
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
+  const addMessageToChat = (role, content) => {
+    console.log(`Adding ${role} message:`, content);
+    setMessages(prev => [...prev, { role, content }]);
+  };
+
+  const renderMessage = (content) => {
+    return (
+      <div className="prose prose-sm max-w-none dark:prose-invert">
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={{
+            // Customize markdown components if needed
+            p: ({ children }) => <p className="mb-2">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+            li: ({ children }) => <li className="mb-1">{children}</li>,
+            a: ({ href, children }) => (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {children}
+              </a>
+            ),
+            code: ({ inline, children }) => (
+              inline ? 
+                <code className="bg-gray-100 px-1 rounded">{children}</code> :
+                <pre className="bg-gray-100 p-2 rounded overflow-x-auto">
+                  <code>{children}</code>
+                </pre>
+            ),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || !sessionId || isLoading) return;
+
+    const message = input.trim();
+    setInput('');
+    
+    try {
+      setIsLoading(true);
+      
+      if (!needsContext) {
+        setCurrentQuery(message);
+        // Add user message once
+        addMessageToChat('user', message);
+
+        const response = await sendConsultQuery(sessionId, message, null, user?.sub);
+        console.log('Initial response:', response);
+
+        if (response.needs_context) {
+          setNeedsContext(true);
+          setContextRequirements(response.context_requirements);
+          setContextAnswers([]);
+          setCurrentContextIndex(0);
+
+          // Add only the response and first question
+          addMessageToChat('assistant', response.response);
+          if (response.context_requirements.length > 0) {
+            addMessageToChat('assistant', response.context_requirements[0].question);
+          }
+        } else {
+          // Add only the response
+          addMessageToChat('assistant', response.response);
+        }
+      } else {
+        // Add user's context answer once
+        addMessageToChat('user', message);
+        
+        const newContextAnswers = [...contextAnswers];
+        newContextAnswers[currentContextIndex] = message;
+        setContextAnswers(newContextAnswers);
+
+        if (currentContextIndex < contextRequirements.length - 1) {
+          setCurrentContextIndex(currentContextIndex + 1);
+          // Add only the next question
+          addMessageToChat('assistant', contextRequirements[currentContextIndex + 1].question);
+        } else {
+          const finalResponse = await sendConsultQuery(
+            sessionId,
+            currentQuery,
+            newContextAnswers,
+            user?.sub
+          );
+          console.log('Final response with context:', finalResponse);
+
+          if (finalResponse.needs_context) {
+            setContextRequirements(finalResponse.context_requirements);
+            setContextAnswers([]);
+            setCurrentContextIndex(0);
+            // Add only the response and first new question
+            addMessageToChat('assistant', finalResponse.response);
+            if (finalResponse.context_requirements.length > 0) {
+              addMessageToChat('assistant', finalResponse.context_requirements[0].question);
+            }
+          } else {
+            // Reset context state
+            setNeedsContext(false);
+            setContextRequirements([]);
+            setContextAnswers([]);
+            setCurrentContextIndex(0);
+            setCurrentQuery('');
+            // Add only the final response
+            addMessageToChat('assistant', finalResponse.response);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in consultation:', error);
+      toast.error('Error processing your request');
+      addMessageToChat('assistant', 'Sorry, there was an error processing your request.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Loading state
-  if (!isReady) {
-    return (
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-          <p className="mt-4 text-gray-600">Initializing consultation...</p>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col">
-        <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-lg font-semibold">Legal Consultation</DialogTitle>
-          <div className="flex items-center justify-end gap-4">
-            <LanguageSelector
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={setSelectedLanguage}
-            />
-          </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Legal Consultation</DialogTitle>
         </DialogHeader>
 
-        {/* Chat Messages */}
-        <div 
-          ref={chatContainerRef}
-          className="flex-1 overflow-y-auto py-4 space-y-4"
-        >
-          {messages.map((message, index) => (
-            <div key={index} className="space-y-4">
-              {/* User Message */}
-              <div className="flex justify-end">
-                <div className="bg-black/5 max-w-[80%] p-4 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-500">You</span>
-                    <CopyButton text={message.prompt} />
-                  </div>
-                  <div className="prose prose-sm max-w-none text-gray-800">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {message.prompt}
-                    </ReactMarkdown>
-                    {selectedLanguage !== 'en' && translatedMessages[message.prompt] && (
-                      <div className="mt-2 pt-2 border-t border-gray-200 text-gray-600">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {translatedMessages[message.prompt]}
-                        </ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Response */}
-              {message.response && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-black/5 max-w-[80%] p-4 rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-500">AI Assistant</span>
-                      <div className="flex items-center gap-2">
-                        <CopyButton text={message.response} />
-                        <VoiceButton text={message.response} language="en" />
-                      </div>
-                    </div>
-                    <div className="prose prose-sm max-w-none text-gray-800">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.response}
-                      </ReactMarkdown>
-                      {selectedLanguage !== 'en' && translatedMessages[message.response] && (
-                        <div className="mt-2 pt-2 border-t border-gray-200 text-gray-600">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {translatedMessages[message.response]}
-                          </ReactMarkdown>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+        {/* Messages Area with ReactMarkdown */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`${
+                msg.role === 'user' ? 'ml-auto bg-black/5' : 'mr-auto bg-white border border-black/5'
+              } max-w-[80%] p-4 rounded-xl`}
+            >
+              {renderMessage(msg.content)}
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
-        <div className="border-t pt-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your message..."
-                className="w-full px-4 py-3 pr-12 rounded-xl border border-black/10 bg-white
-                         placeholder:text-gray-400 text-black focus:outline-none focus:border-black/20
-                         resize-none text-base"
-                rows="3"
-              />
-              <motion.button
-                type="button"
-                onClick={handleVoiceInput}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="absolute right-3 top-3 p-2 rounded-lg hover:bg-black/5 transition-colors"
-              >
-                {isListening ? (
-                  <Mic className="w-5 h-5 text-red-500 animate-pulse" />
-                ) : (
-                  <Mic className="w-5 h-5 text-gray-400" />
-                )}
-              </motion.button>
-            </div>
+        <form onSubmit={handleSubmit} className="border-t p-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                needsContext 
+                  ? `Question ${currentContextIndex + 1}/${contextRequirements.length}: ${
+                      contextRequirements[currentContextIndex]?.question || 'Loading...'
+                    }`
+                  : "Type your legal question..."
+              }
+              className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-1"
+              disabled={isLoading}
+            />
             <button
               type="submit"
-              disabled={loading || !input.trim()}
-              className="w-full h-11 bg-black text-white rounded-xl flex items-center justify-center gap-2
-                       disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              disabled={isLoading || !input.trim()}
+              className="px-4 py-2 bg-black text-white rounded-lg disabled:opacity-50"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Send Message</span>
-                </>
-              )}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -1126,58 +1050,250 @@ const StartConsultingButton = () => {
   );
 };
 
-// Update the main Consulting component
-const Consulting = () => {
+// Update ConsultingHistoryModal component
+const ConsultingHistoryModal = ({ isOpen, onClose, consulting }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="min-h-screen bg-white"
-    >
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Header Section */}
-        <div className="text-center mb-12">
-          <div className="w-16 h-16 bg-black rounded-xl flex items-center justify-center mx-auto mb-6">
-            <MessageSquare className="w-8 h-8 text-white" />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-xl">Consultation History</DialogTitle>
+          <div className="text-sm text-gray-500 space-y-1">
+            <div><span className="font-medium">Session ID:</span> {consulting?.session_id}</div>
+            <div><span className="font-medium">Created:</span> {new Date(consulting?.created_at).toLocaleString()}</div>
           </div>
-          <h1 className="text-4xl font-display font-bold text-black mb-3">Legal Consultation</h1>
-          <p className="text-gray-500 text-lg mb-8">
-            Get instant legal advice from our AI-powered consultant
-          </p>
-          <StartConsultingButton />
-        </div>
+        </DialogHeader>
 
-        {/* Tips Section */}
-        <div className="grid sm:grid-cols-3 gap-4 mb-12">
-          <div className="bg-white border border-black/5 rounded-xl p-4">
-            <h3 className="text-base font-semibold text-black mb-3">How It Works</h3>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li>• Start a new consultation</li>
-              <li>• Describe your legal situation</li>
-              <li>• Get AI-powered legal guidance</li>
-            </ul>
-          </div>
-          <div className="bg-white border border-black/5 rounded-xl p-4">
-            <h3 className="text-base font-semibold text-black mb-3">Tips for Better Results</h3>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li>• Be specific about your case</li>
-              <li>• Include relevant details</li>
-              <li>• Ask clear questions</li>
-            </ul>
-          </div>
-          <div className="bg-white border border-black/5 rounded-xl p-4">
-            <h3 className="text-base font-semibold text-black mb-3">Important Note</h3>
-            <p className="text-sm text-gray-500">
-              This AI consultant provides general legal information. For specific legal advice, please consult with a qualified attorney.
-            </p>
+        {/* Remove scrollIntoView and increase content area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Context History with better styling */}
+          {consulting?.context_history?.length > 0 && (
+            <div className="mb-8 bg-gray-50 p-4 rounded-lg border">
+              <h3 className="font-semibold text-lg mb-3">Context History</h3>
+              <ul className="list-disc pl-5 space-y-2">
+                {consulting.context_history.map((context, idx) => (
+                  <li key={idx} className="text-gray-700">{context}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Conversations with better spacing and visual hierarchy */}
+          <div className="space-y-10">
+            {Object.entries(consulting?.conversations || {}).map(([queryId, conversation]) => (
+              <div key={queryId} className="border rounded-xl shadow-sm bg-white overflow-hidden">
+                {conversation.map((exchange, idx) => {
+                  const questions = [];
+                  if (exchange.response.includes('To better understand')) {
+                    const lines = exchange.response.split('\n');
+                    lines.forEach(line => {
+                      if (line.startsWith('- ')) {
+                        const [question, reasonPart] = line.split('(Reason:');
+                        questions.push({
+                          question: question.replace('- ', '').trim(),
+                          reason: reasonPart ? reasonPart.replace(')', '').trim() : ''
+                        });
+                      }
+                    });
+                  }
+
+                  return (
+                    <div key={idx} className="divide-y">
+                      {/* Query Section */}
+                      <div className="p-5 bg-gray-50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="font-semibold text-gray-700">Query</div>
+                          {questions.length > 0 && (
+                            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                              Needs Context
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-gray-800">{exchange.query}</div>
+                      </div>
+
+                      {/* Response Section */}
+                      <div className="p-5">
+                        <div className="font-semibold text-gray-700 mb-3">Response</div>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {exchange.response}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+
+                      {/* Questions Section with better visual hierarchy */}
+                      {questions.length > 0 && (
+                        <div className="p-5 bg-blue-50">
+                          <div className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                            <span>Required Context</span>
+                            <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
+                              {questions.length} questions
+                            </span>
+                          </div>
+                          <div className="space-y-4">
+                            {questions.map((q, qIdx) => (
+                              <div key={qIdx} className="pl-4 border-l-3 border-blue-300 bg-blue-50/50 p-3 rounded-r-lg">
+                                <div className="font-medium text-blue-900">{q.question}</div>
+                                {q.reason && (
+                                  <div className="text-sm text-blue-700 mt-1 italic">
+                                    {q.reason}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Context Used Section */}
+                      {exchange.context?.length > 0 && (
+                        <div className="p-5 bg-green-50">
+                          <div className="font-semibold text-green-800 mb-3">Context Used</div>
+                          <ul className="list-disc pl-5 space-y-2">
+                            {exchange.context.map((ctx, ctxIdx) => (
+                              <li key={ctxIdx} className="text-green-700">{ctx}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
-        {/* Consultation History */}
-        <ConsultingHistory />
+// Add consulting history button to main component
+const Consulting = () => {
+  const [showChat, setShowChat] = useState(false);
+  const [selectedConsulting, setSelectedConsulting] = useState(null);
+  const [consultings, setConsultings] = useState([]);
+  const { user } = useAuth0();
+
+  // Fetch user's consultings
+  useEffect(() => {
+    const fetchConsultings = async () => {
+      if (user?.sub) {
+        try {
+          console.log("Fetching consultings for user:", user.sub);
+          const data = await getUserConsultings(user.sub);
+          console.log("Fetched consultings:", data);
+          setConsultings(data);
+        } catch (error) {
+          console.error('Error fetching consultings:', error);
+          toast.error('Failed to load consultation history');
+        }
+      }
+    };
+    fetchConsultings();
+  }, [user?.sub]);
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Top Section */}
+      <div className="border-b bg-white sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto p-4">
+          <button
+            onClick={() => setShowChat(true)}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-black/90 transition-colors"
+          >
+            <MessageSquare className="w-5 h-5" />
+            Start New Consultation
+          </button>
+        </div>
       </div>
-    </motion.div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto p-4">
+        <div className="mt-8">
+          <h2 className="text-2xl font-semibold mb-6">Consultation History</h2>
+          
+          {consultings.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <MessageSquare className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Consultations Yet</h3>
+              <p className="text-gray-500 mb-4">
+                Start your first legal consultation to get expert guidance.
+              </p>
+              <button
+                onClick={() => setShowChat(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Begin Consultation
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {consultings.map((consulting) => (
+                <div
+                  key={consulting.session_id}
+                  className="border rounded-lg hover:shadow-md transition-shadow bg-white"
+                >
+                  <div className="p-4 border-b bg-gray-50">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-sm text-gray-500">Session ID:</div>
+                        <div className="font-mono text-sm truncate" title={consulting.session_id}>
+                          {consulting.session_id}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-500">Created:</div>
+                        <div className="text-sm">
+                          {new Date(consulting.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4">
+                    {/* Show first query/response preview */}
+                    {Object.entries(consulting.conversations)[0] && (
+                      <div>
+                        <div className="text-sm font-medium mb-2">Latest Query:</div>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {Object.entries(consulting.conversations)[0][1][0].query}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        onClick={() => setSelectedConsulting(consulting)}
+                        className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chat Modal */}
+      <ChatModal 
+        isOpen={showChat}
+        onClose={() => setShowChat(false)}
+      />
+
+      {/* Detailed Consulting View Modal */}
+      {selectedConsulting && (
+        <ConsultingHistoryModal
+          isOpen={!!selectedConsulting}
+          onClose={() => setSelectedConsulting(null)}
+          consulting={selectedConsulting}
+        />
+      )}
+    </div>
   );
 };
 

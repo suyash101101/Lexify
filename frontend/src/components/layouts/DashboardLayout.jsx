@@ -12,7 +12,8 @@ import {
   User,
   Coins,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Search
 } from 'lucide-react';
 import { GlobalConsultingWidget } from '../Consulting';
 import { Button } from '../shared/Button';
@@ -59,12 +60,40 @@ const DashboardLayout = ({ children }) => {
   const { user, logout } = useAuth0();
   const { credits, CREDIT_COSTS } = useCredits();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const handleMobileNavigate = () => {
     if (window.innerWidth < 768) {
       setIsSidebarOpen(false);
     }
   };
+
+  const navigation = [
+    {
+      name: 'Dashboard',
+      href: '/cases',
+      icon: LayoutGrid,
+      current: pathname === '/cases'
+    },
+    {
+      name: 'Consultancy',
+      href: '/consultancy',
+      icon: MessageSquare,
+      current: pathname === '/consultancy'
+    },
+    {
+      name: 'Research',
+      href: '/research',
+      icon: Search,
+      current: pathname === '/research'
+    },
+    {
+      name: 'Contact Us',
+      href: '/contactus',
+      icon: Phone,
+      current: pathname === '/contactus'
+    },
+  ];
 
   return (
     <div className="h-screen flex overflow-hidden bg-accent-gray">
@@ -92,24 +121,14 @@ const DashboardLayout = ({ children }) => {
 
           {/* Navigation - Scrollable */}
           <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-            <SidebarLink to="/cases" icon={LayoutGrid} onNavigate={handleMobileNavigate}>
-              <span className={`transition-opacity duration-200
-                            ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
-                Dashboard
-              </span>
-            </SidebarLink>
-            <SidebarLink to="/consultancy" icon={MessageSquare} onNavigate={handleMobileNavigate}>
-              <span className={`transition-opacity duration-200
-                            ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
-                Consultancy
-              </span>
-            </SidebarLink>
-            <SidebarLink to="/contactus" icon={Phone} onNavigate={handleMobileNavigate}>
-              <span className={`transition-opacity duration-200
-                            ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
-                Contact Us
-              </span>
-            </SidebarLink>
+            {navigation.map((item) => (
+              <SidebarLink key={item.name} to={item.href} icon={item.icon} onNavigate={handleMobileNavigate}>
+                <span className={`transition-opacity duration-200
+                              ${isSidebarOpen ? 'opacity-100' : 'opacity-0 md:opacity-0 hidden md:block'}`}>
+                  {item.name}
+                </span>
+              </SidebarLink>
+            ))}
           </nav>
 
           {/* User Profile - Fixed at bottom */}

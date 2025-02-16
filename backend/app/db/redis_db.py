@@ -46,7 +46,7 @@ class RedisClient:
         """Store consulting data with given ID"""
         self.redis.set(f"consulting:{consulting_id}", json.dumps(consulting_data))
         # Add to user's consulting set
-        self.redis.sadd(f"user_consultings:{consulting_data['lawyer1_address']}", consulting_id)
+        self.redis.sadd(f"user_consultings:{consulting_data['auth_id']}", consulting_id)
         # Add to global consulting set
         self.redis.sadd("consultings", consulting_id)
         
@@ -66,5 +66,34 @@ class RedisClient:
                 consulting.append(consulting_data)
         return consulting
     
-    
+    #research
+    def create_research(self, research_id: str, research_data: dict):
+        """Store research data with given ID"""
+        self.redis.set(f"research:{research_id}", json.dumps(research_data))
+        # Add to user's research set
+        self.redis.sadd(f"user_research:{research_data['auth_id']}", research_id)
+        # Add to global research set
+        self.redis.sadd("research", research_id)
+        return research_data
+
+    def get_research(self, research_id: str):
+        """Get research data by ID"""
+        data = self.redis.get(f"research:{research_id}")
+        return json.loads(data) if data else None
+
+    def list_research(self, auth_id: str):
+        """List all research sessions for a user"""
+        research_ids = self.redis.smembers(f"user_research:{auth_id}")
+        research = []
+        for research_id in research_ids:
+            research_data = self.get_research(research_id)
+            if research_data:
+                research.append(research_data)
+        return research
+
+    def update_research(self, research_id: str, research_data: dict):
+        """Update research data"""
+        self.redis.set(f"research:{research_id}", json.dumps(research_data))
+        return research_data
+
 redis_client = RedisClient() 

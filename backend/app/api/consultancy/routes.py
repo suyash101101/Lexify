@@ -17,12 +17,13 @@ from ...db.redis_db import redis_client
 import uuid
 from typing import List, Optional, Dict, TypeVar, Union
 from phi.utils.log import logger
+import json
+from datetime import datetime
 
 router = APIRouter()
 
 # Initialize retriever once for all requests
 retriever = initialize_database() # this will get initialized in the start during deployment 
-
 #-----------------------------------------------------------------------------
 # Pydantic Models
 #-----------------------------------------------------------------------------
@@ -54,10 +55,11 @@ class BaseSessionData(BaseModel):
 
 # Consultation Models
 class ConsultRequest(BaseRequest):
-    pass
+    auth_id: Optional[str] = None
 
 class ConsultSessionData(BaseModel):
     session_id: str
+    auth_id: str
     context_history: List[str] = []
     conversations: Dict[str, List[Dict[str, str]]] = Field(
         default_factory=dict,
@@ -66,10 +68,11 @@ class ConsultSessionData(BaseModel):
 
 # Research Models
 class ResearchRequest(BaseRequest):
-    pass
+    auth_id: Optional[str] = None
 
 class ResearchSessionData(BaseModel):
     session_id: str
+    auth_id: str
     context_history: List[str] = []
     conversations: Dict[str, List[Dict[str, str]]] = Field(
         default_factory=dict,
@@ -103,18 +106,20 @@ active_research_sessions: ResearchSessionStorage = {}
 # Helper Functions
 #-----------------------------------------------------------------------------
 
-def create_consult_session(session_id: str) -> ConsultSessionData:
+def create_consult_session(session_id: str, auth_id: str) -> ConsultSessionData:
     """Create a new consultation session"""
     return ConsultSessionData(
         session_id=session_id,
+        auth_id = auth_id,
         conversations={},
         context_history=[],
     )
 
-def create_research_session(session_id: str) -> ResearchSessionData:
+def create_research_session(session_id: str, auth_id: str) -> ResearchSessionData:
     """Create a new research session"""
     return ResearchSessionData(
         session_id=session_id,
+        auth_id = auth_id,
         context_history=[],
         conversations={},
         specialist_findings=None,
@@ -142,19 +147,44 @@ async def consult(session_id: str, request: ConsultRequest):
             raise HTTPException(status_code=404, detail="Session not found")
             
         session_data = active_sessions[session_id]
+        auth_id = session_data.auth_id
+        if(auth_id != request.auth_id):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
         query_id = str(uuid.uuid4())
         
-        # If we received context answers, add them to history
+        # Get existing consulting data
+        consulting_data = redis_client.get_consulting(session_id)
+        if not consulting_data:
+            raise HTTPException(status_code=404, detail="Consulting session not found")
+        
+        # Update context history if needed
         if request.context_answers:
             session_data.context_history.extend(request.context_answers)
+            consulting_data["context_history"].extend(request.context_answers)
         
         # Combine all context
         combined_context = "\n".join(
             request.context_answers if request.context_answers else []
         ).strip()
         
-        # Process the query
+        # Process query
         response = consultant.process_query(request.query, combined_context)
+        
+        # Add conversation with query_id
+        if query_id not in consulting_data["conversations"]:
+            consulting_data["conversations"][query_id] = []
+            
+        consulting_data["conversations"][query_id].append({
+            "query": request.query,
+            "response": response,
+            "context": request.context_answers
+        })
+        
+        consulting_data["updated_at"] = datetime.utcnow().isoformat()
+        
+        # Update Redis
+        redis_client.create_consulting(session_id, consulting_data)
         
         # Store conversation
         if query_id not in session_data.conversations:
@@ -212,10 +242,14 @@ async def consult(session_id: str, request: ConsultRequest):
         )
 
 @router.get("/{session_id}/consult/status", response_model=ConsultSessionData)
-async def get_consult_status(session_id: str):
+async def get_consult_status(session_id: str, auth_id: str):
     """Get the status of a consultation session"""
-    session_data = active_sessions.get(session_id)
-    if not session_data:
+    try:
+        session_data = active_sessions.get(session_id)
+        # consulting_data = redis_client.get_consulting(session_id)
+        if(session_data.auth_id != auth_id):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+    except:
         raise HTTPException(status_code=404, detail="Consultation session not found")
     return session_data
 
@@ -234,11 +268,21 @@ async def research(session_id: str, request: ResearchRequest):
             raise HTTPException(status_code=404, detail="Research session not found")
             
         session_data = active_research_sessions[session_id]
+        auth_id = session_data.auth_id
+        if(auth_id != request.auth_id):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
         query_id = str(uuid.uuid4())
         
-        # If we received context answers, add them to history
+        # Get existing research data from Redis
+        research_data = redis_client.get_research(session_id)
+        if not research_data:
+            raise HTTPException(status_code=404, detail="Research session not found")
+        
+        # Update context history if needed
         if request.context_answers:
             session_data.context_history.extend(request.context_answers)
+            research_data["context_history"].extend(request.context_answers)
         
         # Combine all context
         combined_context = "\n".join(
@@ -248,7 +292,22 @@ async def research(session_id: str, request: ResearchRequest):
         # Process the query
         response = legal_agent.process_query(request.query, combined_context)
         
-        # Store conversation
+        # Store conversation in Redis
+        if query_id not in research_data["conversations"]:
+            research_data["conversations"][query_id] = []
+        
+        research_data["conversations"][query_id].append({
+            "query": request.query,
+            "response": response,
+            "context": request.context_answers
+        })
+        
+        research_data["updated_at"] = datetime.utcnow().isoformat()
+        
+        # Update Redis
+        redis_client.update_research(session_id, research_data)
+        
+        # Store conversation in memory
         if query_id not in session_data.conversations:
             session_data.conversations[query_id] = []
         
@@ -328,65 +387,87 @@ async def get_research_status(session_id: str):
         raise HTTPException(status_code=404, detail="Research session not found")
     return session_data
 
-# #-----------------------------------------------------------------------------
-# # Redis Storage Routes
-# #-----------------------------------------------------------------------------
+@router.get("/research/{session_id}", response_model=dict)
+async def get_research(session_id: str):
+    """Get a specific research session"""
+    try:
+        research = redis_client.get_research(session_id)
+        if not research:
+            raise HTTPException(status_code=404, detail="Research session not found")
+        return research
+    except Exception as e:
+        logger.error(f"Error fetching research: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching research: {str(e)}"
+        )
 
-# @router.post("/ask", response_model=dict)
-# async def ask(request: PromptRequest):
-#     """Ask a question within an existing consulting session"""
-#     try:
-#         session = consultancy_manager.get_session(request.consulting_id)
-#         if not session:
-#             raise HTTPException(status_code=404, detail="Consulting session not found")
-        
-#         response = session.ask(request.prompt)
-#         consulting_data = redis_client.get_consulting(request.consulting_id)
-#         if not consulting_data:
-#             raise HTTPException(status_code=404, detail="Consulting data not found")
-        
-#         message = {
-#             "prompt": request.prompt,
-#             "response": response
-#         }
-#         consulting_data["messages"].append(message)
-        
-#         updated_data = redis_client.create_consulting(
-#             consulting_id=request.consulting_id,
-#             consulting_data=consulting_data
-#         )
-        
-#         return {
-#             "consulting_id": request.consulting_id,
-#             "response": response,
-#             "consulting_data": updated_data
-#         }
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/research-sessions/{auth_id}", response_model=List[dict])
+async def get_user_research(auth_id: str):
+    """Get all research sessions for a user"""
+    try:
+        research = redis_client.list_research(auth_id)
+        return research
+    except Exception as e:
+        logger.error(f"Error fetching research sessions: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching research sessions: {str(e)}"
+        )
 
-# @router.get("/consulting/{consulting_id}", response_model=dict)
-# async def get_consulting(consulting_id: str):
-#     """Get a specific consulting by ID"""
-#     consulting = redis_client.get_consulting(consulting_id)
-#     if not consulting:
-#         raise HTTPException(status_code=404, detail="Consulting not found")
-#     return consulting
+@router.get("/consultings/{auth_id}", response_model=List[dict])
+async def get_user_consultings(auth_id: str):
+    """Get all consultations for a user"""
+    try:
+        consultings = redis_client.list_consulting(auth_id)
+        return consultings
+    except Exception as e:
+        logger.error(f"Error fetching consultings: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching consultings: {str(e)}"
+        )
 
-# @router.get("/user_consultings/{auth_id}", response_model=List[dict])
-# async def get_user_consultings(auth_id: str):
-#     """Get all consultings for a specific user"""
-#     return redis_client.list_consulting(auth_id)
+@router.get("/consulting/{session_id}", response_model=dict)
+async def get_consulting(session_id: str):
+    """Get a specific consulting session"""
+    try:
+        consulting = redis_client.get_consulting(session_id)
+        if not consulting:
+            raise HTTPException(status_code=404, detail="Consulting session not found")
+        return consulting
+    except Exception as e:
+        logger.error(f"Error fetching consulting: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching consulting: {str(e)}"
+        )
 
 @router.post("/initialize/consultant", response_model=InitializeResponse)
-async def initialize_consultant():
+async def initialize_consultant(auth_id: str):
     """Initialize or reinitialize the consultant agent"""
     try:
         global consultant
         consultant = Consultant(retriever)
         session_id = str(uuid.uuid4())
-        # Initialize new session if it doesn't exist
+        
+        # Initialize new session in memory
         if session_id not in active_sessions:
-            active_sessions[session_id] = create_consult_session(session_id)
+            active_sessions[session_id] = create_consult_session(session_id, auth_id)
+        
+        # Initialize in Redis with the same structure
+        consulting_data = {
+            "session_id": session_id,
+            "auth_id": auth_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "context_history": [],
+            "conversations": {}
+        }
+        
+        # Store in Redis
+        redis_client.create_consulting(session_id, consulting_data)
+        
         return InitializeResponse(
             status="success", 
             message="Consultant initialized successfully",
@@ -400,15 +481,30 @@ async def initialize_consultant():
         )
 
 @router.post("/initialize/legal-agent", response_model=InitializeResponse)
-async def initialize_legal_agent():
+async def initialize_legal_agent(auth_id: str):
     """Initialize or reinitialize the legal agent"""
     try:
         global legal_agent
         legal_agent = LegalAgent(retriever) 
         session_id = str(uuid.uuid4())
-        # Initialize new session if it doesn't exist
+        
+        # Initialize new session in memory
         if session_id not in active_research_sessions:
-            active_research_sessions[session_id] = create_research_session(session_id)
+            active_research_sessions[session_id] = create_research_session(session_id, auth_id)
+        
+        # Initialize in Redis with the same structure
+        research_data = {
+            "session_id": session_id,
+            "auth_id": auth_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "context_history": [],
+            "conversations": {}
+        }
+        
+        # Store in Redis
+        redis_client.create_research(session_id, research_data)
+        
         return InitializeResponse(
             status="success", 
             message="Legal agent initialized successfully",
