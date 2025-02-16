@@ -1052,6 +1052,25 @@ const StartConsultingButton = () => {
 
 // Update ConsultingHistoryModal component
 const ConsultingHistoryModal = ({ isOpen, onClose, consulting }) => {
+  const parseQuestionsFromResponse = (response) => {
+    if (!response) return [];
+    
+    const questions = [];
+    if (response.includes('To better understand')) {
+      const lines = response.split('\n');
+      lines.forEach(line => {
+        if (line.startsWith('- ')) {
+          const [question, reasonPart] = line.split('(Reason:');
+          questions.push({
+            question: question.replace('- ', '').trim(),
+            reason: reasonPart ? reasonPart.replace(')', '').trim() : ''
+          });
+        }
+      });
+    }
+    return questions;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col overflow-hidden">
@@ -1063,7 +1082,6 @@ const ConsultingHistoryModal = ({ isOpen, onClose, consulting }) => {
           </div>
         </DialogHeader>
 
-        {/* Remove scrollIntoView and increase content area */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Context History with better styling */}
           {consulting?.context_history?.length > 0 && (
@@ -1082,19 +1100,7 @@ const ConsultingHistoryModal = ({ isOpen, onClose, consulting }) => {
             {Object.entries(consulting?.conversations || {}).map(([queryId, conversation]) => (
               <div key={queryId} className="border rounded-xl shadow-sm bg-white overflow-hidden">
                 {conversation.map((exchange, idx) => {
-                  const questions = [];
-                  if (exchange.response.includes('To better understand')) {
-                    const lines = exchange.response.split('\n');
-                    lines.forEach(line => {
-                      if (line.startsWith('- ')) {
-                        const [question, reasonPart] = line.split('(Reason:');
-                        questions.push({
-                          question: question.replace('- ', '').trim(),
-                          reason: reasonPart ? reasonPart.replace(')', '').trim() : ''
-                        });
-                      }
-                    });
-                  }
+                  const questions = parseQuestionsFromResponse(exchange?.response);
 
                   return (
                     <div key={idx} className="divide-y">
@@ -1108,20 +1114,22 @@ const ConsultingHistoryModal = ({ isOpen, onClose, consulting }) => {
                             </span>
                           )}
                         </div>
-                        <div className="text-gray-800">{exchange.query}</div>
+                        <div className="text-gray-800">{exchange?.query}</div>
                       </div>
 
                       {/* Response Section */}
-                      <div className="p-5">
-                        <div className="font-semibold text-gray-700 mb-3">Response</div>
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {exchange.response}
-                          </ReactMarkdown>
+                      {exchange?.response && (
+                        <div className="p-5">
+                          <div className="font-semibold text-gray-700 mb-3">Response</div>
+                          <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {exchange.response}
+                            </ReactMarkdown>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Questions Section with better visual hierarchy */}
+                      {/* Questions Section */}
                       {questions.length > 0 && (
                         <div className="p-5 bg-blue-50">
                           <div className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
@@ -1146,7 +1154,7 @@ const ConsultingHistoryModal = ({ isOpen, onClose, consulting }) => {
                       )}
 
                       {/* Context Used Section */}
-                      {exchange.context?.length > 0 && (
+                      {exchange?.context?.length > 0 && (
                         <div className="p-5 bg-green-50">
                           <div className="font-semibold text-green-800 mb-3">Context Used</div>
                           <ul className="list-disc pl-5 space-y-2">
