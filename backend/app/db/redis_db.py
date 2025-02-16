@@ -7,7 +7,7 @@ from typing import List
 class RedisClient:
     def __init__(self):
         self.redis = Redis.from_url(
-            url="redis://localhost:6379",
+            url=os.getenv("REDIS_URL"),
             decode_responses=True
         )
     #cases
