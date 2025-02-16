@@ -1182,8 +1182,13 @@ const Consulting = () => {
         try {
           console.log("Fetching consultings for user:", user.sub);
           const data = await getUserConsultings(user.sub);
-          console.log("Fetched consultings:", data);
-          setConsultings(data);
+          // Filter out consultings with no conversations
+          const validConsultings = data.filter(consulting => 
+            consulting?.conversations && 
+            Object.keys(consulting.conversations).length > 0
+          );
+          console.log("Fetched valid consultings:", validConsultings);
+          setConsultings(validConsultings);
         } catch (error) {
           console.error('Error fetching consultings:', error);
           toast.error('Failed to load consultation history');
@@ -1230,50 +1235,62 @@ const Consulting = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {consultings.map((consulting) => (
-                <div
-                  key={consulting.session_id}
-                  className="border rounded-lg hover:shadow-md transition-shadow bg-white"
-                >
-                  <div className="p-4 border-b bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-sm text-gray-500">Session ID:</div>
-                        <div className="font-mono text-sm truncate" title={consulting.session_id}>
-                          {consulting.session_id}
+              {consultings.map((consulting) => {
+                // Get the first conversation safely
+                const firstConversation = consulting?.conversations 
+                  ? Object.entries(consulting.conversations)[0]?.[1]?.[0] 
+                  : null;
+
+                return (
+                  <div
+                    key={consulting.session_id}
+                    className="border rounded-lg hover:shadow-md transition-shadow bg-white"
+                  >
+                    <div className="p-4 border-b bg-gray-50">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-sm text-gray-500">Session ID:</div>
+                          <div className="font-mono text-sm truncate" title={consulting.session_id}>
+                            {consulting.session_id}
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-500">Created:</div>
-                        <div className="text-sm">
-                          {new Date(consulting.created_at).toLocaleDateString()}
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">Created:</div>
+                          <div className="text-sm">
+                            {new Date(consulting.created_at).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    {/* Show first query/response preview */}
-                    {Object.entries(consulting.conversations)[0] && (
-                      <div>
-                        <div className="text-sm font-medium mb-2">Latest Query:</div>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {Object.entries(consulting.conversations)[0][1][0].query}
-                        </p>
-                      </div>
-                    )}
                     
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={() => setSelectedConsulting(consulting)}
-                        className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                      >
-                        View Details
-                      </button>
+                    <div className="p-4">
+                      {firstConversation ? (
+                        <div>
+                          <div className="text-sm font-medium mb-2">Latest Query:</div>
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {firstConversation.query}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-sm text-gray-500 italic">
+                            No conversation data available
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => setSelectedConsulting(consulting)}
+                          className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
