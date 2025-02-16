@@ -128,12 +128,12 @@ async def create_case(case_data: CaseCreateSchema):
             with open(reference_file_path, 'w', encoding='utf-8') as f:
                 f.write(file.description)
 
-        file_path = f'app/case_reports/{case_id}/content_verification/case.txt'
-        reference_path = f'app/case_reports/{case_id}/content_verification/references'
+        # file_path = f'app/case_reports/{case_id}/content_verification/case.txt'
+        # reference_path = f'app/case_reports/{case_id}/content_verification/references'
 
-        content_verifier = ContentVerification(file_path, reference_path)
-        verification_results = content_verifier.verify_content(file_path, reference_path)
-        print(verification_results)
+        # content_verifier = ContentVerification(file_path, reference_path)
+        # verification_results = content_verifier.verify_content(file_path, reference_path)
+        # print(verification_results)
 
 
         case_obj = {

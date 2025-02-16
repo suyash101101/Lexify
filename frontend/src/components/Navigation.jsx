@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Scale, Menu, X, ChevronDown } from 'lucide-react';
+import { Scale, Menu, X, ChevronDown, Search } from 'lucide-react';
 import { Button } from './shared/Button';
 
 const NavLink = ({ to, children }) => {
@@ -75,6 +75,7 @@ const Navigation = () => {
             <NavLink to="/cases">Cases</NavLink>
             <NavLink to="/consultancy">Consultancy</NavLink>
             <NavLink to="/contactus">Contact</NavLink>
+            <NavLink to="/research">Research</NavLink>
           </div>
 
           {/* User Menu - Desktop */}
@@ -151,6 +152,7 @@ const Navigation = () => {
               <NavLink to="/cases" className="block w-full">Cases</NavLink>
               <NavLink to="/consultancy" className="block w-full">Consultancy</NavLink>
               <NavLink to="/contactus" className="block w-full">Contact</NavLink>
+              <NavLink to="/research" className="block w-full">Research</NavLink>
               
               {isAuthenticated ? (
                 <>

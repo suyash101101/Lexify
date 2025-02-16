@@ -21,6 +21,7 @@ import Blog from './pages/Blog';
 import About from './pages/About';
 import Footer from './components/shared/Footer';
 import { Analytics } from '@vercel/analytics/react';
+import Research from './components/Research';
 
 
 // Wrapper for authenticated routes with DashboardLayout
@@ -101,7 +102,11 @@ const App = () => {
             <Consulting />
           </PrivateRoute>
         } />
-
+        <Route path="/research" element={
+          <PrivateRoute>
+            <Research />
+          </PrivateRoute>
+        } />
         <Route path="/profile" element={
           <PrivateRoute>
             <Profile />

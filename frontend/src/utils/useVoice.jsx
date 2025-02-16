@@ -1,115 +1,115 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
-export function useVoice() {
+export function useVoice(language = 'en') {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voices, setVoices] = useState([]);
-
-  useEffect(() => {
-    const synth = window.speechSynthesis;
-    const loadVoices = () => {
-      setVoices(synth.getVoices());
-    };
-
-    loadVoices();
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    return () => {
-      synth.cancel();
-    };
-  }, []);
+  const [audio, setAudio] = useState(null);
 
   const stopSpeaking = useCallback(() => {
-    window.speechSynthesis.cancel();
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
     setIsSpeaking(false);
-  }, []);
+  }, [audio]);
 
-  const speak = useCallback((text, options = {}) => {
+  const speak = useCallback(async (text, options = {}) => {
     stopSpeaking();
     
     if (!text) return;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = options.rate || 1;
-    utterance.pitch = options.pitch || 1;
-    utterance.volume = options.volume || 1;
-    utterance.voice = options.voice || voices[0];
+    try {
+      // Use ElevenLabs' free tier voice
+      const response = await axios.post(
+        'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', // Free tier voice
+        {
+          text,
+          model_id: "eleven_multilingual_v1", // Free tier model
+          language_code: language
+        },
+        {
+          headers: {
+            'xi-api-key': import.meta.env.VITE_ELEVEN_LABS_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          responseType: 'blob'
+        }
+      );
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
+      const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const newAudio = new Audio(audioUrl);
+      
+      newAudio.onended = () => {
+        setIsSpeaking(false);
+        options.onEnd?.();
+      };
+
+      newAudio.onpause = () => {
+        setIsSpeaking(false);
+        options.onEnd?.();
+      };
+
+      setAudio(newAudio);
+      await newAudio.play();
+      setIsSpeaking(true);
+    } catch (error) {
+      console.error('Speech synthesis error:', error);
       options.onEnd?.();
-    };
-
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      options.onEnd?.();
-    };
-
-    setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  }, [voices, stopSpeaking]);
+    }
+  }, [language, stopSpeaking]);
 
   return {
     speak,
     stopSpeaking,
-    isSpeaking,
-    voices
+    isSpeaking
   };
 }
 
-export function useSpeechRecognition() {
+export function useSpeechRecognition(language = 'en') {
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
-  
-  useEffect(() => {
-    // Create recognition instance once
-    recognitionRef.current = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognitionRef.current.continuous = true;
-    recognitionRef.current.interimResults = true;
-
-    return () => {
-      if (isListening) {
-        recognitionRef.current?.stop();
-      }
-    };
-  }, []);
 
   const startListening = useCallback((onResult) => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+    if (!('webkitSpeechRecognition' in window)) {
+      toast.error('Speech recognition not supported in this browser');
       return;
     }
 
-    recognitionRef.current.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0])
-        .map(result => result.transcript)
-        .join('');
-      
-      onResult(transcript);
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = language;
+
+    recognition.onstart = () => {
+      setIsListening(true);
     };
 
-    recognitionRef.current.onend = () => {
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      onResult(transcript);
       setIsListening(false);
     };
 
-    recognitionRef.current.onerror = () => {
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      toast.error('Speech recognition failed');
+    };
+
+    recognition.onend = () => {
       setIsListening(false);
     };
 
     try {
-      recognitionRef.current.start();
-      setIsListening(true);
+      recognition.start();
     } catch (error) {
       console.error('Speech recognition error:', error);
       setIsListening(false);
     }
-  }, [isListening]);
+  }, [language]);
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
     setIsListening(false);
   }, []);
 
